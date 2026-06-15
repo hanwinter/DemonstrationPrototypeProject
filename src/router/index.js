@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import OutpatientPage from '../views/OutpatientPage.vue'
 import OcrRecognition from '../views/OcrRecognition.vue'
+import PartographDemo from '../views/PartographDemo.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -18,6 +19,11 @@ const router = createRouter({
       path: '/ocr-recognition',
       name: 'ocr-recognition',
       component: OcrRecognition,
+    },
+    {
+      path: '/delivery/partograph',
+      name: 'partograph',
+      component: PartographDemo,
     },
   ],
 })

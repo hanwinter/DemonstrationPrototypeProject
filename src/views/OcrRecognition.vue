@@ -16,6 +16,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import ArchiveReportsDialog from '../components/ArchiveReportsDialog.vue'
+import DemoPageNavigation from '../components/DemoPageNavigation.vue'
 import { createLabRows, systemItems } from '../mock/labData'
 
 const router = useRouter()
@@ -326,6 +327,7 @@ async function importToSystem() {
           alt="孕产妇保健管理系统"
         />
       </div>
+      <DemoPageNavigation />
       <div class="header-meta">门诊工作台　｜　操作员：张医生</div>
     </header>
 
