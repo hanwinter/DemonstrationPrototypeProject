@@ -7,23 +7,32 @@ const props = defineProps({
 })
 
 const startTime = new Date('2026-06-15T13:00:00')
-const unified = {
-  width: 840,
-  height: 548,
-  left: 56,
-  right: 52,
-  mainTop: 14,
-  mainBottom: 306,
-  firstTimeBottom: 329,
-  firstDateBottom: 352,
-  contractionTop: 352,
-  contractionBottom: 477,
-  secondTimeBottom: 500,
-  secondDateBottom: 523,
+const layout = {
+  width: 1030,
+  height: 590,
+  diagonalWidth: 72,
+  timeWidth: 58,
+  graphLeft: 130,
+  graphRight: 640,
+  notesLeft: 640,
+  signLeft: 940,
+  right: 1030,
+  top: 8,
+  mainTop: 70,
+  mainBottom: 512,
+  contractionStartHour: 3,
+  contractionEndHour: 18,
+  contractionTop: 382,
+  contractionBottom: 512,
+  bottom: 560,
 }
+
 const hours = Array.from({ length: 25 }, (_, hour) => hour)
-const dataHours = hours.slice(0, 24)
+const noteRows = Array.from({ length: 12 }, (_, index) => index)
 const dilationTicks = Array.from({ length: 11 }, (_, value) => value)
+const stationTicks = Array.from({ length: 11 }, (_, index) => index - 5)
+const fetalHeartTicks = [120, 130, 140, 150, 160]
+const contractionTicks = [20, 30, 40, 50, 60]
 
 function parseTime(value) {
   return new Date(value.replace(' ', 'T'))
@@ -33,39 +42,43 @@ function relativeHour(value) {
   return (parseTime(value) - startTime) / 3600000
 }
 
-function xPoint(value) {
-  return unified.left + (relativeHour(value) / 24) * (unified.width - unified.left - unified.right)
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value))
 }
 
 function hourX(hour) {
-  return unified.left + (hour / 24) * (unified.width - unified.left - unified.right)
+  return layout.graphLeft + (hour / 24) * (layout.graphRight - layout.graphLeft)
+}
+
+function recordX(value) {
+  return hourX(clamp(relativeHour(value), 0, 24))
 }
 
 function dilationY(value) {
-  return unified.mainTop + ((10 - value) / 10) * (unified.mainBottom - unified.mainTop)
+  return layout.mainTop + ((10 - value) / 10) * (layout.mainBottom - layout.mainTop)
 }
 
 function stationY(value) {
-  return unified.mainTop + ((value + 5) / 10) * (unified.mainBottom - unified.mainTop)
+  return layout.mainTop + ((value + 5) / 10) * (layout.mainBottom - layout.mainTop)
+}
+
+function fetalHeartY(value) {
+  const top = layout.mainTop
+  const height = layout.mainBottom - layout.mainTop
+  return top + ((160 - value) / 80) * height
 }
 
 function contractionY(value) {
-  const normalized = Math.max(0, Math.min(60, value))
-  return unified.contractionTop + ((60 - normalized) / 60) * (unified.contractionBottom - unified.contractionTop)
+  return layout.contractionTop + ((60 - clamp(value, 20, 60)) / 40) * (layout.contractionBottom - layout.contractionTop)
 }
 
-const sortedRecords = computed(() =>
-  [...props.records].sort((a, b) => parseTime(a.time) - parseTime(b.time)),
-)
-const dilationPoints = computed(() =>
-  sortedRecords.value.map((item) => `${xPoint(item.time)},${dilationY(item.dilation)}`).join(' '),
-)
-const stationPoints = computed(() =>
-  sortedRecords.value.map((item) => `${xPoint(item.time)},${stationY(item.station)}`).join(' '),
-)
-const recordByHour = computed(() =>
-  new Map(sortedRecords.value.map((item) => [Math.round(relativeHour(item.time)), item])),
-)
+function contractionX(value) {
+  return recordX(value)
+}
+
+function verticalText(text) {
+  return [...text]
+}
 
 function timeMeta(hour) {
   const date = new Date(startTime.getTime() + hour * 3600000)
@@ -77,150 +90,241 @@ function timeMeta(hour) {
   }
 }
 
+function formatDateTime(value) {
+  if (!value) return ''
+  return String(value).replace('2026-', '').replace(' ', ' ')
+}
+
 function intensityMark(intensity) {
   return { 弱: '+', 中: '++', 强: '+++' }[intensity] || ''
 }
+
+const sortedRecords = computed(() =>
+  [...props.records].sort((a, b) => parseTime(a.time) - parseTime(b.time)),
+)
+
+const dilationPoints = computed(() =>
+  sortedRecords.value.map((item) => `${recordX(item.time)},${dilationY(item.dilation)}`).join(' '),
+)
+
+const stationPoints = computed(() =>
+  sortedRecords.value.map((item) => `${recordX(item.time)},${stationY(item.station)}`).join(' '),
+)
+
+const fetalHeartPoints = computed(() =>
+  sortedRecords.value.map((item) => `${recordX(item.time)},${fetalHeartY(item.fetalHeart)}`).join(' '),
+)
+
+const recordByHour = computed(() =>
+  new Map(sortedRecords.value.map((item) => [Math.round(relativeHour(item.time)), item])),
+)
+
+const contractionRecords = computed(() =>
+  sortedRecords.value.filter((item) => {
+    const hour = relativeHour(item.time)
+    return hour >= layout.contractionStartHour && hour <= layout.contractionEndHour
+  }),
+)
 </script>
 
 <template>
   <article class="archive-form">
     <header class="archive-header">
       <h1>产 程 记 录 单</h1>
-      <div class="archive-patient-line">
+      <div class="patient-line">
         <span>姓名 <b>{{ patient.name }}</b></span>
-        <span>年龄 <b>{{ patient.age }}岁</b></span>
-        <span class="archive-number">住院号 <b>{{ patient.inpatientNo }}</b></span>
+        <span>年龄 <b class="short">{{ patient.age }}</b></span>
+        <span class="blank-bracket">（　　　）</span>
+        <span>住院号 <b>{{ patient.inpatientNo }}</b></span>
       </div>
     </header>
 
-    <table class="archive-main-table">
-      <tbody>
-        <tr>
-          <td class="archive-left-cell">
-            <div class="archive-chart-heading">
-              <span>宫口开大用<span class="circle-symbol">○</span>表示</span>
-              <span>胎头下降用<span class="cross-symbol">×</span>表示</span>
-            </div>
+    <svg :viewBox="`0 0 ${layout.width} ${layout.height}`" class="archive-sheet" aria-label="产程记录单归档打印样式">
+      <rect x="0" :y="layout.top" :width="layout.width" :height="layout.bottom - layout.top" fill="none" class="outer-line" />
 
-            <svg :viewBox="`0 0 ${unified.width} ${unified.height}`" class="unified-chart" aria-label="统一归档产程图">
-              <line :x1="unified.left" :x2="unified.left" :y1="unified.mainTop" :y2="unified.secondDateBottom" class="section-line" />
-              <line :x1="unified.width-unified.right" :x2="unified.width-unified.right" :y1="unified.mainTop" :y2="unified.secondDateBottom" class="section-line" />
-              <g v-for="tick in dilationTicks" :key="`y-${tick}`">
-                <line
-                  :x1="unified.left" :x2="unified.width-unified.right"
-                  :y1="dilationY(tick)" :y2="dilationY(tick)"
-                  stroke="#222" :stroke-width="tick === 5 ? 1 : 0.45"
-                />
-                <text :x="unified.left-10" :y="dilationY(tick)+3" text-anchor="end">{{ tick }}</text>
-                <text :x="unified.width-unified.right+9" :y="stationY(tick-5)+3">
-                  {{ tick-5 > 0 ? `+${tick-5}` : tick-5 }}
-                </text>
-              </g>
-              <g v-for="hour in hours" :key="`h-${hour}`">
-                <line
-                  :x1="hourX(hour)" :x2="hourX(hour)"
-                  :y1="unified.mainTop" :y2="unified.secondDateBottom"
-                  stroke="#222" :stroke-width="hour % 4 === 0 ? 0.85 : 0.4"
-                />
-                <text :x="hourX(hour)" :y="unified.mainBottom-6" text-anchor="middle">{{ hour }}</text>
-              </g>
-              <line x1="0" :x2="unified.width" :y1="unified.mainBottom" :y2="unified.mainBottom" class="section-line" />
-              <line x1="0" :x2="unified.width" :y1="unified.firstTimeBottom" :y2="unified.firstTimeBottom" class="thin-section-line" />
-              <line x1="0" :x2="unified.width" :y1="unified.firstDateBottom" :y2="unified.firstDateBottom" class="section-line" />
-              <line x1="0" :x2="unified.width" :y1="unified.contractionBottom" :y2="unified.contractionBottom" class="section-line" />
-              <line x1="0" :x2="unified.width" :y1="unified.secondTimeBottom" :y2="unified.secondTimeBottom" class="thin-section-line" />
-              <line x1="0" :x2="unified.width" :y1="unified.secondDateBottom" :y2="unified.secondDateBottom" class="section-line" />
-              <text x="17" y="105" class="vertical-title">
-                <tspan x="17">宫</tspan><tspan x="17" dy="15">口</tspan><tspan x="17" dy="15">开</tspan>
-                <tspan x="17" dy="15">大</tspan><tspan x="17" dy="15">厘</tspan><tspan x="17" dy="15">米</tspan>
-              </text>
-              <text :x="unified.width-18" y="105" class="vertical-title">
-                <tspan :x="unified.width-18">胎</tspan><tspan :x="unified.width-18" dy="15">头</tspan>
-                <tspan :x="unified.width-18" dy="15">下</tspan><tspan :x="unified.width-18" dy="15">降</tspan>
-                <tspan :x="unified.width-18" dy="15">厘</tspan><tspan :x="unified.width-18" dy="15">米</tspan>
-              </text>
-              <polyline :points="dilationPoints" fill="none" stroke="#b22222" stroke-width="1.7" />
-              <polyline :points="stationPoints" fill="none" stroke="#111" stroke-width="1.4" />
-              <g v-for="item in sortedRecords" :key="item.id">
-                <circle :cx="xPoint(item.time)" :cy="dilationY(item.dilation)" r="4" fill="#fff" stroke="#b22222" stroke-width="1.7" />
-                <path
-                  :d="`M ${xPoint(item.time)-4} ${stationY(item.station)-4} L ${xPoint(item.time)+4} ${stationY(item.station)+4} M ${xPoint(item.time)+4} ${stationY(item.station)-4} L ${xPoint(item.time)-4} ${stationY(item.station)+4}`"
-                  stroke="#111" stroke-width="1.5"
-                />
-              </g>
-              <text x="28" :y="(unified.mainBottom + unified.firstTimeBottom) / 2 + 3" text-anchor="middle" class="row-heading">时间</text>
-              <text x="28" :y="(unified.firstTimeBottom + unified.firstDateBottom) / 2 + 3" text-anchor="middle" class="row-heading">日期</text>
-              <text x="28" :y="(unified.contractionBottom + unified.secondTimeBottom) / 2 + 3" text-anchor="middle" class="row-heading">时间</text>
-              <text x="28" :y="(unified.secondTimeBottom + unified.secondDateBottom) / 2 + 3" text-anchor="middle" class="row-heading">日期</text>
-              <g v-for="hour in dataHours" :key="`meta-${hour}`">
-                <text :x="(hourX(hour)+hourX(hour+1))/2" :y="unified.firstTimeBottom-7" text-anchor="middle">
-                  {{ recordByHour.has(hour) ? timeMeta(hour).hour : '' }}
-                </text>
-                <text :x="(hourX(hour)+hourX(hour+1))/2" :y="unified.firstDateBottom-7" text-anchor="middle">
-                  {{ recordByHour.has(hour) ? timeMeta(hour).date : '' }}
-                </text>
-                <text :x="(hourX(hour)+hourX(hour+1))/2" :y="unified.secondTimeBottom-7" text-anchor="middle">
-                  {{ recordByHour.has(hour) ? timeMeta(hour).hour : '' }}
-                </text>
-                <text :x="(hourX(hour)+hourX(hour+1))/2" :y="unified.secondDateBottom-7" text-anchor="middle">
-                  {{ recordByHour.has(hour) ? timeMeta(hour).date : '' }}
-                </text>
-              </g>
-              <text :x="unified.width/2" :y="unified.contractionTop+13" text-anchor="middle" class="contraction-heading">宫 缩 图</text>
-              <g v-for="value in [20, 40, 60]" :key="value">
-                <line
-                  :x1="unified.left" :x2="unified.width-unified.right"
-                  :y1="contractionY(value)" :y2="contractionY(value)"
-                  stroke="#333" stroke-width="0.45"
-                />
-                <text :x="unified.left-8" :y="contractionY(value)+3" text-anchor="end">{{ value }}秒</text>
-              </g>
-              <text :x="unified.left-8" :y="unified.contractionBottom-3" text-anchor="end">&lt;20秒</text>
-              <g v-for="item in sortedRecords" :key="`contraction-${item.id}`">
-                <line
-                  :x1="xPoint(item.time)" :x2="xPoint(item.time)"
-                  :y1="contractionY(item.duration)" :y2="unified.contractionBottom"
-                  stroke="#111" stroke-width="1.2"
-                />
-                <text :x="xPoint(item.time)" :y="contractionY(item.duration)-4" text-anchor="middle" class="strength-mark">
-                  {{ intensityMark(item.intensity) }}
-                </text>
-                <text :x="xPoint(item.time)" :y="unified.contractionBottom-4" text-anchor="middle">
-                  {{ item.duration }}
-                </text>
-              </g>
-            </svg>
+      <line :x1="layout.notesLeft" :x2="layout.notesLeft" :y1="layout.top" :y2="layout.bottom" class="heavy-line" />
+      <line :x1="layout.signLeft" :x2="layout.signLeft" :y1="layout.top" :y2="layout.bottom" class="thin-line" />
+      <line :x1="layout.diagonalWidth" :x2="layout.diagonalWidth" :y1="layout.top" :y2="layout.bottom" class="thin-line" />
+      <line :x1="layout.diagonalWidth + layout.timeWidth" :x2="layout.diagonalWidth + layout.timeWidth" :y1="layout.top" :y2="layout.bottom" class="thin-line" />
 
-            <div class="archive-fetal-line">
-              <span>胎儿娩出：________</span>
-              <span>胎心：________ 次/分</span>
-            </div>
-          </td>
+      <line x1="0" :x2="layout.right" :y1="layout.mainTop" :y2="layout.mainTop" class="heavy-line" />
+      <line x1="0" :x2="layout.graphRight" :y1="layout.mainBottom" :y2="layout.mainBottom" class="heavy-line" />
+      <line x1="0" :x2="layout.graphRight" :y1="layout.bottom" :y2="layout.bottom" class="heavy-line" />
 
-          <td class="archive-notes-cell">
-            <table class="notes-table">
-              <thead>
-                <tr>
-                  <th>处 理 及 附 注</th>
-                  <th>签 字</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="hour in dataHours" :key="`note-${hour}`">
-                  <td>{{ recordByHour.get(hour)?.note || '' }}</td>
-                  <td></td>
-                </tr>
-              </tbody>
-            </table>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <line x1="0" :x2="layout.diagonalWidth" :y1="layout.top" :y2="layout.mainTop" class="thin-line" />
+      <line x1="0" :x2="layout.diagonalWidth" :y1="layout.mainTop" :y2="layout.top" class="thin-line" />
+      <text x="18" y="30" class="normal-text">日</text>
+      <text x="48" y="58" class="normal-text">月</text>
+      <g class="vertical-label">
+        <text
+          v-for="(char, index) in verticalText('时间')"
+          :key="`time-${char}`"
+          :x="layout.diagonalWidth + 28"
+          :y="32 + index * 18"
+        >
+          {{ char }}
+        </text>
+      </g>
+
+      <text :x="layout.notesLeft + 150" y="48" text-anchor="middle" class="notes-title">处 理 及 附 注</text>
+      <text :x="layout.signLeft + 45" y="48" text-anchor="middle" class="notes-title">签 字</text>
+      <g v-for="row in noteRows" :key="`note-row-${row}`">
+        <line
+          :x1="layout.notesLeft"
+          :x2="layout.right"
+          :y1="layout.mainTop + row * ((layout.bottom - layout.mainTop) / noteRows.length)"
+          :y2="layout.mainTop + row * ((layout.bottom - layout.mainTop) / noteRows.length)"
+          class="thin-line"
+        />
+      </g>
+      <g v-for="(item, index) in sortedRecords" :key="`note-${item.id}`">
+        <text
+          :x="layout.notesLeft + 8"
+          :y="layout.mainTop + 28 + index * ((layout.bottom - layout.mainTop) / noteRows.length)"
+          class="note-text"
+        >
+          {{ item.note }}
+        </text>
+      </g>
+
+      <g v-for="hour in hours" :key="`hour-line-${hour}`">
+        <line
+          :x1="hourX(hour)"
+          :x2="hourX(hour)"
+          :y1="layout.top"
+          :y2="layout.bottom"
+          :class="hour % 4 === 0 ? 'heavy-grid-line' : 'grid-line'"
+        />
+        <text :x="hourX(hour)" :y="layout.mainTop - 10" text-anchor="middle" class="normal-text">
+          {{ hour }}
+        </text>
+      </g>
+
+      <g v-for="tick in dilationTicks" :key="`dilation-${tick}`">
+        <line
+          :x1="layout.graphLeft"
+          :x2="layout.graphRight"
+          :y1="dilationY(tick)"
+          :y2="dilationY(tick)"
+          :class="tick === 5 ? 'heavy-grid-line' : 'grid-line'"
+        />
+        <text :x="layout.graphLeft - 15" :y="dilationY(tick) + 4" text-anchor="end" class="normal-text">
+          {{ tick }}
+        </text>
+      </g>
+
+      <g v-for="tick in stationTicks" :key="`station-${tick}`">
+        <text :x="layout.notesLeft - 22" :y="stationY(tick) + 4" class="normal-text">
+          {{ tick > 0 ? `+${tick}` : tick === 0 ? 'S' : tick }}
+        </text>
+      </g>
+      <g v-for="tick in fetalHeartTicks" :key="`fhr-${tick}`">
+        <text :x="layout.notesLeft - 38" :y="fetalHeartY(tick) + 4" text-anchor="end" class="normal-text">
+          {{ tick }}
+        </text>
+      </g>
+
+      <text :x="layout.graphLeft + 250" y="34" text-anchor="middle" class="legend-text">宫口开大用○表示</text>
+      <g class="vertical-label">
+        <text
+          v-for="(char, index) in verticalText('胎头下降厘米')"
+          :key="`station-title-${char}-${index}`"
+          :x="layout.notesLeft - 14"
+          :y="400 + index * 13"
+          text-anchor="middle"
+        >
+          {{ char }}
+        </text>
+        <text :x="layout.notesLeft - 14" y="528" text-anchor="middle">×</text>
+      </g>
+      <text :x="layout.graphRight - 150" :y="layout.contractionTop - 12" class="legend-text">胎儿娩出－红⊗</text>
+      <text :x="layout.graphRight - 115" :y="layout.mainTop + 18" class="legend-text">胎心……红・160</text>
+
+      <polyline :points="dilationPoints" fill="none" stroke="#b22222" stroke-width="1.5" />
+      <polyline :points="stationPoints" fill="none" stroke="#111" stroke-width="1.25" />
+      <polyline :points="fetalHeartPoints" fill="none" stroke="#b22222" stroke-width="1.05" stroke-dasharray="3 3" />
+      <g v-for="item in sortedRecords" :key="`point-${item.id}`">
+        <circle :cx="recordX(item.time)" :cy="dilationY(item.dilation)" r="5.2" fill="#fff" stroke="#b22222" stroke-width="1.5" />
+        <path
+          :d="`M ${recordX(item.time)-5.2} ${stationY(item.station)-5.2} L ${recordX(item.time)+5.2} ${stationY(item.station)+5.2} M ${recordX(item.time)+5.2} ${stationY(item.station)-5.2} L ${recordX(item.time)-5.2} ${stationY(item.station)+5.2}`"
+          stroke="#111"
+          stroke-width="1.45"
+        />
+        <circle :cx="recordX(item.time)" :cy="fetalHeartY(item.fetalHeart)" r="2.4" fill="#b22222" />
+      </g>
+
+      <text x="26" y="284" class="vertical-side">估计胎儿大小：__________ 克。</text>
+      <text x="26" y="470" class="vertical-side">胎位：__________。</text>
+      <text x="26" y="536" class="vertical-side">破膜时间：__________。</text>
+
+      <rect
+        :x="hourX(layout.contractionStartHour)"
+        :y="layout.contractionTop"
+        :width="hourX(layout.contractionEndHour) - hourX(layout.contractionStartHour)"
+        :height="layout.contractionBottom - layout.contractionTop"
+        fill="#fff"
+        class="thin-line"
+      />
+      <text :x="hourX(layout.contractionStartHour) - 45" :y="layout.contractionTop + 35" class="contraction-label">宫缩</text>
+      <text :x="hourX(layout.contractionStartHour) - 45" :y="layout.contractionTop + 56" class="contraction-label">持续</text>
+      <text :x="hourX(layout.contractionStartHour) - 45" :y="layout.contractionTop + 77" class="contraction-label">时间</text>
+      <text :x="hourX(layout.contractionStartHour) - 45" :y="layout.contractionTop + 98" class="contraction-label">&lt;秒&gt;</text>
+      <text :x="hourX(layout.contractionStartHour) + 112" :y="layout.contractionTop + 32" class="legend-text">宫缩间歇（每格一小时）</text>
+      <text :x="hourX(layout.contractionStartHour) + 113" :y="layout.contractionTop + 58" class="legend-text">弱±　+　++表示强度</text>
+      <g
+        v-for="hour in hours.filter((item) => item >= layout.contractionStartHour && item <= layout.contractionEndHour)"
+        :key="`contraction-hour-${hour}`"
+      >
+        <line
+          :x1="hourX(hour)"
+          :x2="hourX(hour)"
+          :y1="layout.contractionTop"
+          :y2="layout.contractionBottom"
+          class="grid-line"
+        />
+      </g>
+      <g v-for="tick in contractionTicks" :key="`contraction-tick-${tick}`">
+        <line
+          :x1="hourX(layout.contractionStartHour)"
+          :x2="hourX(layout.contractionEndHour)"
+          :y1="contractionY(tick)"
+          :y2="contractionY(tick)"
+          class="grid-line"
+        />
+        <text :x="hourX(layout.contractionStartHour) - 12" :y="contractionY(tick) + 4" text-anchor="end" class="normal-text">
+          {{ tick }}
+        </text>
+      </g>
+      <g v-for="item in contractionRecords" :key="`contraction-${item.id}`">
+        <line
+          :x1="contractionX(item.time)"
+          :x2="contractionX(item.time)"
+          :y1="contractionY(item.duration)"
+          :y2="layout.contractionBottom"
+          stroke="#111"
+          stroke-width="1.2"
+        />
+        <text :x="contractionX(item.time)" :y="contractionY(item.duration) - 5" text-anchor="middle" class="strength-mark">
+          {{ intensityMark(item.intensity) }}
+        </text>
+      </g>
+
+      <g v-for="hour in hours.slice(0, 24)" :key="`bottom-time-${hour}`">
+        <text :x="(hourX(hour) + hourX(hour + 1)) / 2" :y="layout.contractionBottom + 22" text-anchor="middle" class="normal-text">
+          {{ recordByHour.has(hour) ? timeMeta(hour).hour : '' }}
+        </text>
+        <text :x="(hourX(hour) + hourX(hour + 1)) / 2" :y="layout.contractionBottom + 48" text-anchor="middle" class="normal-text">
+          {{ recordByHour.has(hour) ? timeMeta(hour).date : '' }}
+        </text>
+      </g>
+      <text :x="layout.diagonalWidth + 28" :y="layout.contractionBottom + 22" text-anchor="middle" class="normal-text">时</text>
+      <text :x="layout.diagonalWidth + 28" :y="layout.contractionBottom + 48" text-anchor="middle" class="normal-text">日</text>
+    </svg>
 
     <footer class="archive-footer">
       <span>估计胎儿大小：<b>{{ patient.fetalWeight }}</b></span>
       <span>胎位：<b>{{ patient.fetalPosition }}</b></span>
-      <span>破膜时间：<b>{{ patient.ruptureTime }}</b></span>
+      <span>破膜时间：<b>{{ formatDateTime(patient.ruptureTime) }}</b></span>
     </footer>
   </article>
 </template>
@@ -229,41 +333,139 @@ function intensityMark(intensity) {
 .archive-form {
   width: 273mm;
   height: 190mm;
-  padding: 0;
+  padding: 0 6mm 3mm;
   display: flex;
   flex-direction: column;
   color: #111;
   background: #fff;
   font-family: "SimSun", "宋体", serif;
-  font-size: 9px;
+  font-size: 10px;
   box-sizing: border-box;
 }
-.archive-header h1 { margin: 2mm 0 3.5mm; text-align: center; font-size: 23px; font-weight: 500; letter-spacing: 8px; }
-.archive-patient-line { height: 8mm; padding: 0 3mm 1.5mm; display: flex; align-items: flex-end; gap: 18mm; border-bottom: 1.3px solid #111; font-size: 11px; box-sizing: border-box; }
-.archive-patient-line b { display: inline-block; min-width: 24mm; padding: 0 2mm .8mm; text-align: center; border-bottom: 1px solid #111; }
-.archive-number { margin-left: auto; }
-.archive-main-table { width: 100%; flex: 1; table-layout: fixed; border-collapse: collapse; border: 1.3px solid #111; border-top: 0; }
-.archive-main-table > tbody > tr > td { padding: 0; vertical-align: top; border: 1.3px solid #111; }
-.archive-left-cell { width: 68%; }
-.archive-notes-cell { width: 32%; }
-.archive-chart-heading { height: 6mm; padding: 0 4mm; display: flex; align-items: center; justify-content: flex-end; gap: 7mm; border-bottom: 1px solid #111; box-sizing: border-box; }
-.circle-symbol { font-size: 14px; }
-.cross-symbol { font-size: 14px; }
-.unified-chart { width: 100%; height: 130mm; display: block; border-bottom: 1px solid #111; }
-.unified-chart text { fill: #111; font-size: 8px; font-family: "SimSun", "宋体", serif; }
-.section-line { stroke: #111; stroke-width: 1; }
-.thin-section-line { stroke: #222; stroke-width: .5; }
-.vertical-title { font-weight: 600; }
-.row-heading { font-size: 8px !important; }
-.contraction-heading { font-size: 10px !important; letter-spacing: 4px; }
-.strength-mark { font-size: 10px !important; font-weight: 700; }
-.archive-fetal-line { height: 7mm; padding: 0 6mm; display: flex; align-items: center; justify-content: space-between; box-sizing: border-box; }
-.notes-table { width: 100%; height: 100%; table-layout: fixed; border-collapse: collapse; }
-.notes-table th, .notes-table td { border: .7px solid #111; }
-.notes-table th:first-child, .notes-table td:first-child { width: 76%; }
-.notes-table th:last-child, .notes-table td:last-child { width: 24%; border-right: 0; }
-.notes-table th { height: 17mm; font-size: 13px; font-weight: 500; letter-spacing: 4px; }
-.notes-table td { height: 5.05mm; padding: .5mm 1mm; overflow: hidden; font-size: 8px; box-sizing: border-box; }
-.archive-footer { height: 9mm; padding: 0 5mm; display: flex; align-items: center; justify-content: space-between; border: 1.3px solid #111; border-top: 0; font-size: 10px; box-sizing: border-box; }
-.archive-footer b { display: inline-block; min-width: 23mm; padding-bottom: .8mm; text-align: center; border-bottom: 1px solid #111; }
+
+.archive-header h1 {
+  margin: 2mm 0 4mm;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 12px;
+}
+
+.patient-line {
+  height: 9mm;
+  padding: 0 10mm;
+  display: flex;
+  align-items: flex-end;
+  gap: 7mm;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.patient-line b {
+  display: inline-block;
+  min-width: 30mm;
+  padding: 0 2mm .7mm;
+  text-align: center;
+  border-bottom: 1px solid #111;
+  font-weight: 400;
+}
+
+.patient-line b.short {
+  min-width: 18mm;
+}
+
+.blank-bracket {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+}
+
+.archive-sheet {
+  width: 100%;
+  flex: 1;
+  display: block;
+}
+
+.archive-sheet text {
+  fill: #111;
+  font-family: "SimSun", "宋体", serif;
+  font-size: 10px;
+}
+
+.outer-line {
+  stroke: #111;
+  stroke-width: 1.6;
+}
+
+.heavy-line,
+.heavy-grid-line {
+  stroke: #111;
+  stroke-width: 1.1;
+}
+
+.thin-line,
+.grid-line {
+  stroke: #111;
+  stroke-width: .55;
+}
+
+.notes-title {
+  font-size: 14px !important;
+  font-weight: 600;
+  letter-spacing: 6px;
+}
+
+.normal-text {
+  font-size: 11px !important;
+}
+
+.note-text {
+  font-size: 9px !important;
+}
+
+.legend-text {
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
+.vertical-label text {
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
+.vertical-side {
+  writing-mode: tb;
+  glyph-orientation-vertical: 0;
+  font-size: 12px !important;
+  letter-spacing: 2px;
+}
+
+.contraction-label {
+  font-size: 12px !important;
+  font-weight: 600;
+}
+
+.strength-mark {
+  font-size: 12px !important;
+  font-weight: 700;
+}
+
+.archive-footer {
+  height: 7mm;
+  padding: 0 9mm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  box-sizing: border-box;
+}
+
+.archive-footer b {
+  display: inline-block;
+  min-width: 22mm;
+  padding-bottom: .5mm;
+  text-align: center;
+  border-bottom: 1px solid #111;
+  font-weight: 400;
+}
 </style>
