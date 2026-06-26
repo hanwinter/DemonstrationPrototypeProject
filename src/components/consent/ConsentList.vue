@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, reactive, ref } from 'vue'
 import { DocumentAdd, Printer, Refresh } from '@element-plus/icons-vue'
 import { consentStatusMeta, consentStatusOptions } from '../../mock/consentDocuments'
@@ -15,7 +15,6 @@ const emit = defineEmits([
   'edit',
   'preview',
   'qr',
-  'patient-sign',
   'doctor-sign',
   'archive',
   'print',
@@ -43,15 +42,28 @@ const filteredDocuments = computed(() =>
   }),
 )
 
-function actionVisible(status, action) {
-  const rules = {
-    draft: ['edit', 'preview', 'qr', 'void'],
-    pendingPatient: ['preview', 'qr', 'patient-sign', 'void'],
-    pendingDoctor: ['preview', 'doctor-sign', 'archive', 'void'],
-    archived: ['preview', 'print', 'void'],
-    voided: ['preview'],
-  }
-  return rules[status]?.includes(action)
+function hasPatientSignature(row) {
+  return Boolean(row.patientSignature)
+}
+
+function hasDoctorSignature(row) {
+  return Boolean(row.doctorSignature)
+}
+
+function canArchive(row) {
+  return row.status === 'draft' && hasPatientSignature(row) && hasDoctorSignature(row)
+}
+
+function actionVisible(row, action) {
+  if (action === 'view') return true
+  if (row.status === 'voided') return false
+  if (action === 'edit') return row.status === 'draft'
+  if (action === 'qr') return row.status === 'draft' && !hasPatientSignature(row)
+  if (action === 'doctor-sign') return row.status === 'draft' && !hasDoctorSignature(row)
+  if (action === 'archive') return canArchive(row)
+  if (action === 'print') return row.status === 'archived'
+  if (action === 'void') return row.status !== 'voided'
+  return false
 }
 
 function printSelected() {
@@ -113,33 +125,28 @@ function printSelected() {
       <el-table-column label="签字人" width="120">
         <template #default="{ row }">{{ row.signer || '-' }}</template>
       </el-table-column>
-      <el-table-column label="状态" width="120">
+      <el-table-column label="状态" width="230">
         <template #default="{ row }">
-          <el-tag :type="consentStatusMeta[row.status].type">{{ consentStatusMeta[row.status].label }}</el-tag>
+          <div class="status-stack">
+            <el-tag :type="consentStatusMeta[row.status].type" effect="plain">{{ consentStatusMeta[row.status].label }}</el-tag>
+            <span>医生：{{ hasDoctorSignature(row) ? '已签' : '未签' }}</span>
+            <span>孕产妇：{{ hasPatientSignature(row) ? '已签' : '未签' }}</span>
+          </div>
         </template>
       </el-table-column>
       <el-table-column label="归档时间" width="150">
         <template #default="{ row }">{{ row.archivedAt || '-' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="330" fixed="right">
+      <el-table-column label="操作" width="390" fixed="right">
         <template #default="{ row }">
           <div class="row-actions">
-            <el-button v-if="actionVisible(row.status, 'edit')" link type="primary" @click="emit('edit', row)">编辑</el-button>
-            <el-button v-if="actionVisible(row.status, 'preview')" link type="primary" @click="emit('preview', row)">
-              {{ row.status === 'archived' || row.status === 'voided' ? '查看' : '预览' }}
-            </el-button>
-            <el-button v-if="actionVisible(row.status, 'qr')" link type="warning" @click="emit('qr', row)">
-              {{ row.status === 'pendingPatient' ? '二维码' : '生成二维码' }}
-            </el-button>
-            <el-button v-if="actionVisible(row.status, 'patient-sign')" link type="warning" @click="emit('patient-sign', row)">
-              模拟孕妇签字
-            </el-button>
-            <el-button v-if="actionVisible(row.status, 'doctor-sign')" link type="primary" @click="emit('doctor-sign', row)">
-              医生签字
-            </el-button>
-            <el-button v-if="actionVisible(row.status, 'archive')" link type="success" @click="emit('archive', row)">归档</el-button>
-            <el-button v-if="actionVisible(row.status, 'print')" link type="primary" @click="emit('print', row)">打印</el-button>
-            <el-button v-if="actionVisible(row.status, 'void')" link type="danger" @click="emit('void', row)">作废</el-button>
+            <el-button v-if="actionVisible(row, 'edit')" link type="primary" @click="emit('edit', row)">编辑</el-button>
+            <el-button link type="primary" @click="emit('preview', row)">查看</el-button>
+            <el-button v-if="actionVisible(row, 'qr')" link type="warning" @click="emit('qr', row)">二维码</el-button>
+            <el-button v-if="actionVisible(row, 'doctor-sign')" link type="primary" @click="emit('doctor-sign', row)">医生签字</el-button>
+            <el-button v-if="actionVisible(row, 'archive')" link type="success" @click="emit('archive', row)">归档</el-button>
+            <el-button v-if="actionVisible(row, 'print')" link type="primary" @click="emit('print', row)">打印</el-button>
+            <el-button v-if="actionVisible(row, 'void')" link type="danger" @click="emit('void', row)">作废</el-button>
           </div>
         </template>
       </el-table-column>
@@ -198,7 +205,20 @@ function printSelected() {
 }
 
 .row-actions {
-  flex-wrap: wrap;
-  gap: 2px 6px;
+  flex-wrap: nowrap;
+  gap: 0 6px;
+  white-space: nowrap;
+}
+
+.status-stack {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #566579;
+  font-size: 12px;
+  white-space: nowrap;
 }
 </style>
+
+
+

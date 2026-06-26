@@ -1,4 +1,4 @@
-export const consentPatient = {
+﻿export const consentPatient = {
   name: '王晓梅',
   age: '28岁',
   gestationalAge: '32+4周',
@@ -13,16 +13,12 @@ export const consentSceneOptions = ['产检告知', '高危告知', '住院告�
 export const consentStatusOptions = [
   { label: '全部', value: '' },
   { label: '草稿', value: 'draft' },
-  { label: '待孕妇签字', value: 'pendingPatient' },
-  { label: '待医生签字', value: 'pendingDoctor' },
   { label: '已归档', value: 'archived' },
   { label: '已作废', value: 'voided' },
 ]
 
 export const consentStatusMeta = {
   draft: { label: '草稿', type: 'info' },
-  pendingPatient: { label: '待孕妇签字', type: 'warning' },
-  pendingDoctor: { label: '待医生签字', type: 'primary' },
   archived: { label: '已归档', type: 'success' },
   voided: { label: '已作废', type: 'danger' },
 }
@@ -86,7 +82,7 @@ export function createMockConsentDocuments() {
       createdAt: '2026-06-23 10:10',
       noticeTime: '2026-06-23 10:10',
       createdDoctor: '李医生',
-      status: 'pendingPatient',
+      status: 'draft',
     }),
     createConsentDraft({
       id: 1003,
@@ -94,7 +90,7 @@ export function createMockConsentDocuments() {
       createdAt: '2026-06-22 16:30',
       noticeTime: '2026-06-22 16:30',
       createdDoctor: '王医生',
-      status: 'pendingDoctor',
+      status: 'draft',
       signer: '王晓梅',
       signerRole: '孕妇本人',
       patientSignature: '王晓梅',
@@ -118,3 +114,5 @@ export function createMockConsentDocuments() {
     }),
   ]
 }
+
+

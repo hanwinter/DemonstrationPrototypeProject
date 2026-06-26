@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import {
   ArrowLeft,
@@ -6,7 +6,6 @@ import {
   Camera,
   Close,
   Download,
-  Edit,
   FullScreen,
   Minus,
   Picture,
@@ -16,8 +15,6 @@ import {
   RefreshRight,
   Search,
   Top,
-  Upload,
-  View,
   ZoomIn,
   ZoomOut,
 } from '@element-plus/icons-vue'
@@ -48,14 +45,6 @@ const captureForm = reactive({
   remark: '外院产检携带报告，需归档影像。',
 })
 
-const entryForm = reactive({
-  nt: '1.6',
-  crl: '62',
-  fetalHeart: '152',
-  bpd: '72',
-  fl: '54',
-  afi: '128',
-})
 
 const thumbnails = ref([
   { id: 1, name: '第1页', angle: 0 },
@@ -65,21 +54,19 @@ const thumbnails = ref([
 
 const filters = reactive({
   reportDates: [],
-  uploadDates: [],
+  archiveDates: [],
   reportType: '',
-  hospital: '',
   uploader: '',
-  keyword: '',
+  status: '',
 })
 
 const reportRows = ref(createReports())
 const filteredReports = computed(() =>
   reportRows.value.filter((item) => {
     const typeMatch = !filters.reportType || item.reportType === filters.reportType
-    const hospitalMatch = !filters.hospital || item.hospital === filters.hospital
     const uploaderMatch = !filters.uploader || item.uploader.includes(filters.uploader)
-    const keywordMatch = !filters.keyword || `${item.reportType}${item.hospital}${item.remark}`.includes(filters.keyword)
-    return typeMatch && hospitalMatch && uploaderMatch && keywordMatch
+    const statusMatch = !filters.status || item.status === filters.status
+    return typeMatch && uploaderMatch && statusMatch
   }),
 )
 
@@ -131,7 +118,7 @@ function createReports() {
     hospital: hospitals[index % hospitals.length],
     pages: (index % 3) + 1,
     uploader: index % 2 ? '李护士' : '张医生',
-    uploadedAt: `2026-06-${String(20 - index).padStart(2, '0')} ${String(9 + index).padStart(2, '0')}:18`,
+    archivedAt: `2026-06-${String(20 - index).padStart(2, '0')} ${String(9 + index).padStart(2, '0')}:18`,
     status: statuses[index],
     remark: index % 2 ? '外院复查报告' : '孕期常规检查报告',
   }))
@@ -338,11 +325,10 @@ function archiveReport() {
 function resetFilters() {
   Object.assign(filters, {
     reportDates: [],
-    uploadDates: [],
+    archiveDates: [],
     reportType: '',
-    hospital: '',
     uploader: '',
-    keyword: '',
+    status: '',
   })
 }
 
@@ -383,6 +369,23 @@ function downloadViewer() {
   ElMessage.success('已触发下载演示')
 }
 
+function retakeReport(row) {
+  Object.assign(captureForm, {
+    reportType: row.reportType,
+    reportDate: row.reportDate,
+    hospital: row.hospital,
+    visitDate: row.reportDate,
+    remark: row.remark || '补拍外院报告图片。',
+  })
+  thumbnails.value = Array.from({ length: row.pages || 1 }, (_, index) => ({
+    id: Date.now() + index,
+    name: `第${index + 1}页`,
+    angle: 0,
+  }))
+  activeTab.value = 'capture'
+  ElMessage.info(`已切换到采集页，可补拍 ${row.reportType}`)
+}
+
 function voidReport(row) {
   ElMessageBox.confirm(`确认作废 ${row.reportDate} 的${row.reportType}？`, '作废确认', {
     type: 'warning',
@@ -417,7 +420,6 @@ function voidReport(row) {
             <el-breadcrumb-item>外院报告影像管理</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <span class="page-code">业务日期：2026-06-22</span>
       </section>
 
       <section class="external-tabs">
@@ -446,17 +448,17 @@ function voidReport(row) {
             <div class="card-title">报告信息</div>
             <el-form label-position="top">
               <el-form-item label="报告类型">
-                <el-select v-model="captureForm.reportType">
-                  <el-option v-for="item in reportTypes" :key="item" :label="item" :value="item" />
-                </el-select>
+                <el-radio-group v-model="captureForm.reportType" class="report-type-radios">
+                  <el-radio-button v-for="item in reportTypes" :key="item" :label="item" :value="item" />
+                </el-radio-group>
               </el-form-item>
-              <el-form-item label="报告日期">
+              <el-form-item label="报告日期" class="compact-form-item">
                 <el-date-picker v-model="captureForm.reportDate" type="date" value-format="YYYY-MM-DD" />
               </el-form-item>
               <el-form-item label="检查医院">
                 <el-input v-model="captureForm.hospital" />
               </el-form-item>
-              <el-form-item label="关联产检日期">
+              <el-form-item label="关联产检日期" class="compact-form-item">
                 <el-date-picker v-model="captureForm.visitDate" type="date" value-format="YYYY-MM-DD" />
               </el-form-item>
               <el-form-item label="备注">
@@ -470,29 +472,33 @@ function voidReport(row) {
           <section class="his-card scanner-card">
             <div class="scanner-topline">
               <div>
-                <div class="card-title">高拍仪采集区</div>
-                <span class="device-status">设备已连接</span>
+                <div class="card-title">高拍仪采集</div>
+
               </div>
-              <el-tag type="success" effect="plain">实时预览</el-tag>
             </div>
             <div class="scanner-preview">
-              <img :src="createReportImageUrl(capturePreviewReport, 1)" alt="高拍仪实时预览" />
+              <img :src="createReportImageUrl(capturePreviewReport, 1)" alt="高拍仪预览" />
               <div class="scanner-overlay">
                 <el-icon><Camera /></el-icon>
-                <span>实时预览</span>
+                <span>当前采集：{{ captureForm.reportType }} ｜ 设备已连接</span>
               </div>
             </div>
             <div class="scanner-actions">
               <el-button :icon="Camera">打开高拍仪</el-button>
               <el-button type="primary" :icon="Picture" @click="addPhoto">拍照</el-button>
-              <el-button :icon="Picture" @click="addPhoto">连续拍照</el-button>
               <el-button :icon="RefreshLeft">重拍</el-button>
-              <el-button :icon="Upload">上传图片</el-button>
             </div>
           </section>
 
           <section class="his-card thumb-card">
-            <div class="card-title">报告图片预览</div>
+            <div class="thumb-heading">
+              <div class="card-title">报告图片预览</div>
+              <div class="thumb-save-actions">
+                <el-button @click="saveDraft">保存草稿</el-button>
+                <el-button type="primary" @click="archiveReport">保存归档</el-button>
+                <el-button @click="router.push('/outpatient')">返回档案</el-button>
+              </div>
+            </div>
             <div class="thumb-list">
               <article v-for="(item, index) in thumbnails" :key="item.id" class="thumb-item">
                 <div class="thumb-image" @dblclick="openViewer(null, index + 1)">
@@ -518,12 +524,6 @@ function voidReport(row) {
             </div>
           </section>
 
-          <footer class="capture-footer">
-            <el-button @click="saveDraft">保存草稿</el-button>
-            <el-button type="primary" @click="archiveReport">保存归档</el-button>
-            <el-button>取消</el-button>
-            <el-button @click="router.push('/outpatient')">返回档案</el-button>
-          </footer>
         </section>
       </section>
 
@@ -538,77 +538,62 @@ function voidReport(row) {
         </section>
 
         <section class="archive-content">
-          <section class="report-list-panel">
-            <section class="his-card filter-card">
-              <div class="card-title">筛选条件</div>
-              <el-form class="filter-grid" label-position="top">
-                <el-form-item label="报告日期范围"><el-date-picker v-model="filters.reportDates" type="daterange" value-format="YYYY-MM-DD" /></el-form-item>
-                <el-form-item label="上传日期范围"><el-date-picker v-model="filters.uploadDates" type="daterange" value-format="YYYY-MM-DD" /></el-form-item>
-                <el-form-item label="报告类型">
+          <section class="report-list-panel">            <section class="his-card filter-card">
+              <el-form class="filter-grid archive-filter-grid" label-position="left">
+                <el-form-item label="报告日期" class="filter-date"><el-date-picker v-model="filters.reportDates" type="daterange" value-format="YYYY-MM-DD" /></el-form-item>
+                <el-form-item label="归档日期" class="filter-date"><el-date-picker v-model="filters.archiveDates" type="daterange" value-format="YYYY-MM-DD" /></el-form-item>
+                <el-form-item label="上传人" class="filter-uploader"><el-input v-model="filters.uploader" clearable /></el-form-item>
+                <el-form-item label="报告类型" class="filter-type">
                   <el-select v-model="filters.reportType" clearable>
                     <el-option v-for="item in reportTypes" :key="item" :label="item" :value="item" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="检查医院">
-                  <el-select v-model="filters.hospital" clearable filterable>
-                    <el-option v-for="item in hospitals" :key="item" :label="item" :value="item" />
+                <el-form-item label="报告状态" class="filter-status">
+                  <el-select v-model="filters.status">
+                    <el-option label="全部" value="" />
+                    <el-option label="正常" value="正常" />
+                    <el-option label="草稿" value="草稿" />
+                    <el-option label="已作废" value="已作废" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="上传人"><el-input v-model="filters.uploader" /></el-form-item>
-                <el-form-item label="关键词"><el-input v-model="filters.keyword" /></el-form-item>
               </el-form>
               <div class="filter-actions">
                 <el-button type="primary" :icon="Search">查询</el-button>
                 <el-button @click="resetFilters">重置</el-button>
-                <el-button type="primary" plain :icon="Camera" @click="activeTab = 'capture'">新增外院报告</el-button>
               </div>
             </section>
 
-            <section class="his-card list-card">
-              <div class="list-title">
-                <div class="card-title">报告列表</div>
-                <span>共 {{ filteredReports.length }} 条</span>
+            <section class="his-card list-card">              <div class="list-title">
+                <div class="list-title-left">
+                  <div class="card-title">报告列表</div>
+                  <span>共 {{ filteredReports.length }} 条</span>
+                </div>
+                <el-button type="primary" plain :icon="Camera" @click="activeTab = 'capture'">新增外院报告</el-button>
               </div>
-              <el-table :data="filteredReports" border stripe height="390" class="report-table">
+              <el-table :data="filteredReports" border stripe height="calc(100vh - 360px)" class="report-table">
                 <el-table-column prop="reportDate" label="报告日期" width="112" />
                 <el-table-column prop="reportType" label="报告类型" width="120" />
                 <el-table-column prop="hospital" label="检查医院" min-width="210" show-overflow-tooltip />
                 <el-table-column prop="pages" label="页数" width="70" align="center" />
                 <el-table-column prop="uploader" label="上传人" width="92" />
-                <el-table-column prop="uploadedAt" label="上传时间" width="150" />
+                <el-table-column prop="archivedAt" label="归档时间" width="150" />
                 <el-table-column prop="status" label="状态" width="88" align="center">
                   <template #default="{ row }">
                     <el-tag :type="statusType(row.status)" effect="plain" size="small">{{ row.status }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="190" fixed="right">
+                <el-table-column label="操作" width="180" fixed="right">
                   <template #default="{ row }">
-                    <el-button link type="primary" :icon="View" @click="openViewer(row)">查看</el-button>
-                    <el-button link :icon="Edit">编辑</el-button>
-                    <el-button link :icon="Camera">补拍</el-button>
-                    <el-button link type="danger" @click="voidReport(row)">作废</el-button>
+                    <div class="operation-actions">
+                      <el-button link type="primary" @click="openViewer(row)">查看</el-button>
+                      <el-button link @click="retakeReport(row)">补拍</el-button>
+                      <el-button link type="danger" @click="voidReport(row)">作废</el-button>
+                    </div>
                   </template>
                 </el-table-column>
               </el-table>
             </section>
           </section>
-
-          <aside class="his-card entry-demo-panel">
-            <div class="card-title">三期系统录入示意区</div>
-            <el-alert title="用于演示医生查看外院报告影像，同时录入妇幼三期系统数据。" type="info" :closable="false" show-icon />
-            <el-form label-position="top" class="entry-demo-form">
-              <el-form-item label="NT值（mm）"><el-input v-model="entryForm.nt" /></el-form-item>
-              <el-form-item label="CRL（mm）"><el-input v-model="entryForm.crl" /></el-form-item>
-              <el-form-item label="胎心率（次/分）"><el-input v-model="entryForm.fetalHeart" /></el-form-item>
-              <el-form-item label="双顶径（mm）"><el-input v-model="entryForm.bpd" /></el-form-item>
-              <el-form-item label="股骨长（mm）"><el-input v-model="entryForm.fl" /></el-form-item>
-              <el-form-item label="羊水指数（mm）"><el-input v-model="entryForm.afi" /></el-form-item>
-            </el-form>
-            <div class="entry-demo-actions">
-              <el-button>暂存</el-button>
-              <el-button type="primary">保存录入</el-button>
-            </div>
-          </aside>
         </section>
       </section>
     </main>
@@ -799,6 +784,36 @@ function voidReport(row) {
   width: 100%;
 }
 
+.report-type-radios {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.report-type-radios :deep(.el-radio-button__inner) {
+  width: 100%;
+  padding: 8px 6px;
+  border-left: 1px solid var(--el-border-color);
+  border-radius: 2px;
+}
+.compact-form-item :deep(.el-form-item__label) {
+  width: 96px;
+  height: 32px;
+  margin: 0;
+  padding-right: 10px;
+  justify-content: flex-end;
+  line-height: 32px;
+}
+
+.compact-form-item :deep(.el-form-item__content) {
+  min-width: 0;
+  flex: 1;
+}
+
+.report-form-card :deep(.compact-form-item) {
+  display: flex;
+  align-items: center;
+}
 .scanner-card {
   padding-bottom: 12px;
 }
@@ -815,11 +830,6 @@ function voidReport(row) {
   border-bottom: none;
 }
 
-.device-status {
-  margin-left: 12px;
-  color: #2f7d46;
-  font-size: 13px;
-}
 
 .scanner-preview {
   position: relative;
@@ -854,15 +864,31 @@ function voidReport(row) {
 }
 
 .scanner-actions,
-.capture-footer,
-.filter-actions,
-.entry-demo-actions {
+.filter-actions {
   padding: 10px 12px 0;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+.thumb-heading {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e3e9ef;
+}
+
+.thumb-heading .card-title {
+  border-bottom: none;
+}
+
+.thumb-save-actions {
+  padding-right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .thumb-card {
   min-height: 190px;
 }
@@ -920,12 +946,6 @@ function voidReport(row) {
   gap: 2px 8px;
 }
 
-.capture-footer {
-  justify-content: flex-end;
-  padding: 12px;
-  background: #fff;
-  border: 1px solid #d8e0e8;
-}
 
 .archive-page-layout {
   margin-top: 10px;
@@ -953,60 +973,88 @@ function voidReport(row) {
 
 .archive-content {
   margin-top: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 10px;
+  display: block;
 }
 
 .filter-card {
-  padding-bottom: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .filter-grid {
-  padding: 10px 12px 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.filter-grid :deep(.el-date-editor),
-.filter-grid :deep(.el-select) {
-  width: 100%;
+.archive-filter-grid {
+  flex: 0 0 auto;
+}
+
+.archive-filter-grid :deep(.el-form-item) {
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.archive-filter-grid :deep(.el-form-item__label) {
+  width: 76px;
+  height: 32px;
+  padding-right: 8px;
+  justify-content: flex-end;
+  line-height: 32px;
+  color: #637083;
+}
+
+.archive-filter-grid :deep(.el-form-item__content) {
+  min-width: 0;
+}
+
+.archive-filter-grid :deep(.filter-date .el-date-editor) {
+  width: 248px;
+}
+
+.archive-filter-grid :deep(.filter-uploader .el-input) {
+  width: 140px;
+}
+
+.archive-filter-grid :deep(.filter-type .el-select),
+.archive-filter-grid :deep(.filter-status .el-select) {
+  width: 160px;
 }
 
 .filter-actions {
-  justify-content: flex-end;
+  width: 100%;
+  padding-left: 0;
+  justify-content: center;
 }
-
+.list-title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .list-title span {
   padding-right: 12px;
   color: #8793a0;
 }
 
+.operation-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.operation-actions .el-button {
+  margin: 0;
+}
 .report-table {
   --el-table-header-bg-color: #edf4fa;
   --el-table-header-text-color: #41556b;
 }
 
-.entry-demo-panel {
-  padding-bottom: 12px;
-}
-
-.entry-demo-panel .el-alert {
-  width: auto;
-  margin: 10px 12px 0;
-}
-
-.entry-demo-form {
-  padding: 12px 12px 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 10px;
-}
-
-.entry-demo-actions {
-  justify-content: flex-end;
-}
 
 .floating-viewer {
   position: fixed;
@@ -1127,3 +1175,33 @@ function voidReport(row) {
   }
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

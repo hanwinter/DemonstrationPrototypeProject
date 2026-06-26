@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { consentStatusMeta } from '../../mock/consentDocuments'
 import ConsentDocument from './ConsentDocument.vue'
 
@@ -13,18 +13,25 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'edit', 'qr', 'patient-sign', 'doctor-sign', 'archive', 'print'])
+const emit = defineEmits(['update:modelValue', 'edit', 'qr', 'doctor-sign', 'archive', 'print'])
+
+function hasPatientSignature() {
+  return Boolean(props.document?.patientSignature)
+}
+
+function hasDoctorSignature() {
+  return Boolean(props.document?.doctorSignature)
+}
 
 function canShow(action) {
-  const status = props.document?.status
-  const rules = {
-    draft: ['edit', 'qr'],
-    pendingPatient: ['patient-sign'],
-    pendingDoctor: ['doctor-sign', 'archive'],
-    archived: ['print'],
-    voided: [],
-  }
-  return rules[status]?.includes(action)
+  const document = props.document
+  if (!document || document.status === 'voided') return false
+  if (action === 'edit') return document.status === 'draft'
+  if (action === 'qr') return document.status === 'draft' && !hasPatientSignature()
+  if (action === 'doctor-sign') return document.status === 'draft' && !hasDoctorSignature()
+  if (action === 'archive') return document.status === 'draft' && hasPatientSignature() && hasDoctorSignature()
+  if (action === 'print') return document.status === 'archived'
+  return false
 }
 </script>
 
@@ -68,10 +75,7 @@ function canShow(action) {
 
         <div class="side-actions">
           <el-button v-if="canShow('edit')" @click="emit('edit', document)">返回编辑</el-button>
-          <el-button v-if="canShow('qr')" type="warning" @click="emit('qr', document)">生成二维码</el-button>
-          <el-button v-if="canShow('patient-sign')" type="warning" @click="emit('patient-sign', document)">
-            模拟孕妇签字
-          </el-button>
+          <el-button v-if="canShow('qr')" type="warning" @click="emit('qr', document)">二维码</el-button>
           <el-button v-if="canShow('doctor-sign')" type="primary" @click="emit('doctor-sign', document)">医生签字</el-button>
           <el-button v-if="canShow('archive')" type="success" @click="emit('archive', document)">归档</el-button>
           <el-button v-if="canShow('print')" type="primary" @click="emit('print', document)">打印预览</el-button>
@@ -153,3 +157,5 @@ function canShow(action) {
   margin-left: 0;
 }
 </style>
+
+

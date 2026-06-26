@@ -1,9 +1,10 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+﻿import { createRouter, createWebHashHistory } from 'vue-router'
 import OutpatientPage from '../views/OutpatientPage.vue'
 import OcrRecognition from '../views/OcrRecognition.vue'
 import PartographDemo from '../views/PartographDemo.vue'
 import ExternalReportImaging from '../views/ExternalReportImaging.vue'
 import ConsentManagement from '../views/ConsentManagement.vue'
+import ArchiveSupplementWorkbench from '../views/ArchiveSupplementWorkbench.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -37,7 +38,13 @@ const router = createRouter({
       name: 'consent-management',
       component: ConsentManagement,
     },
+    {
+      path: '/archive-supplement-workbench',
+      name: 'archive-supplement-workbench',
+      component: ArchiveSupplementWorkbench,
+    },
   ],
 })
 
 export default router
+

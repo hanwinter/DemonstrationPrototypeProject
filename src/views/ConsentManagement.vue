@@ -1,6 +1,6 @@
-<script setup>
-import { computed, ref } from 'vue'
-import { ArrowLeft, DocumentChecked } from '@element-plus/icons-vue'
+﻿<script setup>
+import { ref } from 'vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import DemoPageNavigation from '../components/DemoPageNavigation.vue'
@@ -31,11 +31,6 @@ const mobileSignVisible = ref(false)
 const doctorSignVisible = ref(false)
 const printVisible = ref(false)
 
-const summary = computed(() => ({
-  total: documents.value.length,
-  archived: documents.value.filter((item) => item.status === 'archived').length,
-  pending: documents.value.filter((item) => ['pendingPatient', 'pendingDoctor'].includes(item.status)).length,
-}))
 
 function upsertDocument(payload, status = 'draft') {
   const now = formatNow()
@@ -97,7 +92,7 @@ function previewFromEdit(payload) {
 }
 
 function generateQrFromEdit(payload) {
-  const document = upsertDocument(payload, 'pendingPatient')
+  const document = upsertDocument(payload, 'draft')
   selectedDocument.value = document
   editVisible.value = false
   qrVisible.value = true
@@ -105,10 +100,6 @@ function generateQrFromEdit(payload) {
 }
 
 function openQr(document) {
-  if (document.status === 'draft') {
-    document.status = 'pendingPatient'
-    ElMessage.success('文书状态已更新为待孕妇签字')
-  }
   selectedDocument.value = document
   qrVisible.value = true
 }
@@ -123,10 +114,9 @@ function submitPatientSignature(payload) {
   updateSelected({
     ...payload,
     patientSignedAt: formatNow(),
-    status: 'pendingDoctor',
   })
   mobileSignVisible.value = false
-  ElMessage.success('孕妇/家属签字已提交，状态已更新为待医生签字')
+  ElMessage.success('孕妇/家属签字已提交')
 }
 
 function openDoctorSign(document) {
@@ -248,12 +238,13 @@ function refreshList() {
             <el-breadcrumb-item>知情同意书</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
-        <div class="page-code">档案号：{{ consentPatient.archiveNo }}</div>
+
       </section>
 
       <section class="patient-bar">
         <span class="patient-label">孕产妇信息</span>
         <div><span>姓名：</span><strong>{{ consentPatient.name }}</strong></div>
+        <div><span>档案号：</span><strong>{{ consentPatient.archiveNo }}</strong></div>
         <div><span>年龄：</span><strong>{{ consentPatient.age }}</strong></div>
         <div><span>孕周：</span><strong>{{ consentPatient.gestationalAge }}</strong></div>
         <div><span>联系电话：</span><strong>{{ consentPatient.phone }}</strong></div>
@@ -272,17 +263,6 @@ function refreshList() {
         </el-tabs>
       </section>
 
-      <section class="consent-overview">
-        <div>
-          <el-icon><DocumentChecked /></el-icon>
-          <span>当前档案知情同意书</span>
-        </div>
-        <div class="overview-stats">
-          <span>总数：<strong>{{ summary.total }}</strong></span>
-          <span>待处理：<strong>{{ summary.pending }}</strong></span>
-          <span>已归档：<strong>{{ summary.archived }}</strong></span>
-        </div>
-      </section>
 
       <ConsentList
         :documents="documents"
@@ -290,7 +270,6 @@ function refreshList() {
         @edit="openEdit"
         @preview="openPreview"
         @qr="openQr"
-        @patient-sign="openMobileSign"
         @doctor-sign="openDoctorSign"
         @archive="archiveDocument"
         @print="openPrint"
@@ -313,7 +292,6 @@ function refreshList() {
       :document="selectedDocument"
       @edit="openEdit"
       @qr="openQr"
-      @patient-sign="openMobileSign"
       @doctor-sign="openDoctorSign"
       @archive="archiveDocument"
       @print="openPrint"
@@ -371,40 +349,6 @@ function refreshList() {
   font-size: 15px;
 }
 
-.consent-overview {
-  height: 48px;
-  margin-top: 12px;
-  padding: 0 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #f7fbff;
-  border: 1px solid var(--border-color);
-  border-bottom: none;
-}
-
-.consent-overview > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #33465b;
-  font-weight: 600;
-}
-
-.consent-overview .el-icon {
-  color: var(--medical-blue);
-  font-size: 18px;
-}
-
-.overview-stats {
-  gap: 22px;
-  color: #6b7888;
-  font-weight: 400;
-}
-
-.overview-stats strong {
-  color: #25364a;
-}
 
 @media print {
   .system-header,
@@ -415,3 +359,6 @@ function refreshList() {
   }
 }
 </style>
+
+
+
