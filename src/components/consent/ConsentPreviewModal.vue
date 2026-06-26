@@ -26,10 +26,10 @@ function hasDoctorSignature() {
 function canShow(action) {
   const document = props.document
   if (!document || document.status === 'voided') return false
-  if (action === 'edit') return document.status === 'draft'
-  if (action === 'qr') return document.status === 'draft' && !hasPatientSignature()
-  if (action === 'doctor-sign') return document.status === 'draft' && !hasDoctorSignature()
-  if (action === 'archive') return document.status === 'draft' && hasPatientSignature() && hasDoctorSignature()
+  if (action === 'edit') return document.status === 'unarchived'
+  if (action === 'qr') return document.status === 'unarchived' && !hasPatientSignature()
+  if (action === 'doctor-sign') return document.status === 'unarchived' && !hasDoctorSignature()
+  if (action === 'archive') return document.status === 'unarchived' && hasPatientSignature() && hasDoctorSignature()
   if (action === 'print') return document.status === 'archived'
   return false
 }
@@ -157,5 +157,6 @@ function canShow(action) {
   margin-left: 0;
 }
 </style>
+
 
 

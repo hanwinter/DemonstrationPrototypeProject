@@ -12,13 +12,13 @@ export const consentSceneOptions = ['产检告知', '高危告知', '住院告�
 
 export const consentStatusOptions = [
   { label: '全部', value: '' },
-  { label: '草稿', value: 'draft' },
+  { label: '未归档', value: 'unarchived' },
   { label: '已归档', value: 'archived' },
   { label: '已作废', value: 'voided' },
 ]
 
 export const consentStatusMeta = {
-  draft: { label: '草稿', type: 'info' },
+  unarchived: { label: '未归档', type: 'info' },
   archived: { label: '已归档', type: 'success' },
   voided: { label: '已作废', type: 'danger' },
 }
@@ -49,8 +49,7 @@ export function createConsentDraft(seed = {}) {
     createdDoctor: seed.createdDoctor || '张医生',
     illnessSummary: seed.illnessSummary || defaultIllnessSummary,
     riskNotice: seed.riskNotice || defaultRiskNotice,
-    needPatientSignature: seed.needPatientSignature ?? true,
-    allowFamilySignature: seed.allowFamilySignature ?? true,
+    signatureMode: seed.signatureMode || '本人或家属均可',
     confirmText: seed.confirmText || defaultConfirmText,
     signer: seed.signer || '',
     signerRole: seed.signerRole || '',
@@ -62,7 +61,7 @@ export function createConsentDraft(seed = {}) {
     archivedAt: seed.archivedAt || '',
     printCount: seed.printCount || 0,
     voidReason: seed.voidReason || '',
-    status: seed.status || 'draft',
+    status: seed.status || 'unarchived',
   }
 }
 
@@ -74,7 +73,7 @@ export function createMockConsentDocuments() {
       createdAt: '2026-06-23 09:20',
       noticeTime: '2026-06-23 09:20',
       createdDoctor: '张医生',
-      status: 'draft',
+      status: 'unarchived',
     }),
     createConsentDraft({
       id: 1002,
@@ -82,7 +81,7 @@ export function createMockConsentDocuments() {
       createdAt: '2026-06-23 10:10',
       noticeTime: '2026-06-23 10:10',
       createdDoctor: '李医生',
-      status: 'draft',
+      status: 'unarchived',
     }),
     createConsentDraft({
       id: 1003,
@@ -90,7 +89,7 @@ export function createMockConsentDocuments() {
       createdAt: '2026-06-22 16:30',
       noticeTime: '2026-06-22 16:30',
       createdDoctor: '王医生',
-      status: 'draft',
+      status: 'unarchived',
       signer: '王晓梅',
       signerRole: '孕妇本人',
       patientSignature: '王晓梅',
@@ -114,5 +113,7 @@ export function createMockConsentDocuments() {
     }),
   ]
 }
+
+
 
 

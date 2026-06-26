@@ -1,5 +1,5 @@
-<script setup>
-import { reactive, ref, watch } from 'vue'
+﻿<script setup>
+import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 
 const props = defineProps({
@@ -23,16 +23,40 @@ const form = reactive({
 })
 const signature = ref('')
 
+const signerRoleOptions = computed(() => {
+  if (props.document?.signatureMode === '孕妇本人签字') return ['孕妇本人']
+  if (props.document?.signatureMode === '家属代签') return ['家属代签']
+  return ['孕妇本人', '家属代签']
+})
+
+function defaultSignerRole() {
+  return props.document?.signatureMode === '家属代签' ? '家属代签' : '孕妇本人'
+}
+
+function resetSignForm() {
+  form.confirmed = false
+  form.signerRole = defaultSignerRole()
+  form.signer = form.signerRole === '孕妇本人' ? '王晓梅' : ''
+  form.relation = ''
+  signature.value = ''
+}
+
 watch(
-  () => props.modelValue,
-  (visible) => {
+  () => [props.modelValue, props.document?.signatureMode],
+  ([visible]) => {
     if (visible) {
-      form.confirmed = false
-      form.signerRole = '孕妇本人'
-      form.signer = '王晓梅'
-      form.relation = ''
-      signature.value = ''
+      resetSignForm()
     }
+  },
+)
+
+watch(
+  () => form.signerRole,
+  (role, previousRole) => {
+    if (!props.modelValue || role === previousRole) return
+    form.signer = role === '孕妇本人' ? '王晓梅' : ''
+    if (role !== '家属代签') form.relation = ''
+    signature.value = ''
   },
 )
 
@@ -80,6 +104,7 @@ function submit() {
           <div><dt>患者姓名</dt><dd>王晓梅</dd></div>
           <div><dt>告知时间</dt><dd>{{ document.noticeTime }}</dd></div>
           <div><dt>告知医生</dt><dd>{{ document.createdDoctor }}</dd></div>
+          <div><dt>签字方式</dt><dd>{{ document.signatureMode || '本人或家属均可' }}</dd></div>
         </dl>
 
         <section>
@@ -98,8 +123,7 @@ function submit() {
         <el-form label-position="top">
           <el-form-item label="签字人身份">
             <el-radio-group v-model="form.signerRole">
-              <el-radio-button label="孕妇本人" />
-              <el-radio-button label="家属代签" />
+              <el-radio-button v-for="item in signerRoleOptions" :key="item" :label="item" />
             </el-radio-group>
           </el-form-item>
           <el-form-item label="签字人姓名">
@@ -236,3 +260,4 @@ section p {
   width: 100%;
 }
 </style>
+

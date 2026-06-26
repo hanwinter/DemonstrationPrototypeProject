@@ -32,7 +32,7 @@ const doctorSignVisible = ref(false)
 const printVisible = ref(false)
 
 
-function upsertDocument(payload, status = 'draft') {
+function upsertDocument(payload, status = 'unarchived') {
   const now = formatNow()
   if (payload.id) {
     const index = documents.value.findIndex((item) => item.id === payload.id)
@@ -62,8 +62,8 @@ function openCreate() {
 }
 
 function openEdit(document) {
-  if (document.status !== 'draft') {
-    ElMessage.warning('只有草稿状态允许编辑')
+  if (document.status !== 'unarchived') {
+    ElMessage.warning('只有未归档状态允许编辑')
     return
   }
   editDocument.value = { ...document }
@@ -75,24 +75,25 @@ function openPreview(document) {
   previewVisible.value = true
 }
 
-function saveDraft(payload) {
-  const document = upsertDocument(payload, 'draft')
+function saveUnarchived(payload) {
+  const document = upsertDocument(payload, 'unarchived')
   selectedDocument.value = document
-  editVisible.value = false
-  ElMessage.success('知情同意书草稿已保存')
+  editDocument.value = { ...document }
+  editVisible.value = true
+  ElMessage.success('知情同意书已保存')
 }
 
 function previewFromEdit(payload) {
   selectedDocument.value = createConsentDraft({
     ...payload,
     id: payload.id || 'preview',
-    status: payload.status || 'draft',
+    status: payload.status || 'unarchived',
   })
   previewVisible.value = true
 }
 
 function generateQrFromEdit(payload) {
-  const document = upsertDocument(payload, 'draft')
+  const document = upsertDocument(payload, 'unarchived')
   selectedDocument.value = document
   editVisible.value = false
   qrVisible.value = true
@@ -282,7 +283,7 @@ function refreshList() {
     <ConsentEditModal
       v-model="editVisible"
       :document="editDocument"
-      @save-draft="saveDraft"
+      @save-unarchived="saveUnarchived"
       @preview="previewFromEdit"
       @generate-qr="generateQrFromEdit"
     />
@@ -359,6 +360,9 @@ function refreshList() {
   }
 }
 </style>
+
+
+
 
 
 

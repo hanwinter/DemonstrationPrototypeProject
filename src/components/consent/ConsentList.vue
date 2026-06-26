@@ -51,19 +51,26 @@ function hasDoctorSignature(row) {
 }
 
 function canArchive(row) {
-  return row.status === 'draft' && hasPatientSignature(row) && hasDoctorSignature(row)
+  return row.status === 'unarchived' && hasPatientSignature(row) && hasDoctorSignature(row)
 }
 
 function actionVisible(row, action) {
   if (action === 'view') return true
   if (row.status === 'voided') return false
-  if (action === 'edit') return row.status === 'draft'
-  if (action === 'qr') return row.status === 'draft' && !hasPatientSignature(row)
-  if (action === 'doctor-sign') return row.status === 'draft' && !hasDoctorSignature(row)
+  if (action === 'edit') return row.status === 'unarchived'
+  if (action === 'qr') return row.status === 'unarchived' && !hasPatientSignature(row)
+  if (action === 'doctor-sign') return row.status === 'unarchived' && !hasDoctorSignature(row)
   if (action === 'archive') return canArchive(row)
   if (action === 'print') return row.status === 'archived'
   if (action === 'void') return row.status !== 'voided'
   return false
+}
+
+function signerRoleLabel(row) {
+  if (!row.signerRole) return '-'
+  if (row.signerRole.includes('本人')) return '本人'
+  if (row.signerRole.includes('家属')) return '家属'
+  return row.signerRole
 }
 
 function printSelected() {
@@ -73,15 +80,6 @@ function printSelected() {
 
 <template>
   <section class="consent-list">
-    <div class="list-heading">
-      <h2>知情同意书</h2>
-      <div class="list-actions">
-        <el-button type="primary" :icon="DocumentAdd" @click="emit('create')">新建知情同意书</el-button>
-        <el-button :icon="Printer" @click="printSelected">打印选中</el-button>
-        <el-button :icon="Refresh" @click="emit('refresh')">刷新</el-button>
-      </div>
-    </div>
-
     <div class="filter-panel">
       <el-form inline label-width="76px">
         <el-form-item label="文书状态">
@@ -110,6 +108,15 @@ function printSelected() {
       </el-form>
     </div>
 
+    <div class="list-heading">
+      <h2>知情同意书</h2>
+      <div class="list-actions">
+        <el-button type="primary" :icon="DocumentAdd" @click="emit('create')">新建知情同意书</el-button>
+        <el-button :icon="Printer" @click="printSelected">打印选中</el-button>
+        <el-button :icon="Refresh" @click="emit('refresh')">刷新</el-button>
+      </div>
+    </div>
+
     <el-table
       class="consent-table"
       :data="filteredDocuments"
@@ -122,6 +129,9 @@ function printSelected() {
       <el-table-column prop="scene" label="告知场景" width="110" />
       <el-table-column prop="createdAt" label="创建时间" width="150" />
       <el-table-column prop="createdDoctor" label="创建医生" width="96" />
+      <el-table-column label="签字身份" width="86">
+        <template #default="{ row }">{{ signerRoleLabel(row) }}</template>
+      </el-table-column>
       <el-table-column label="签字人" width="120">
         <template #default="{ row }">{{ row.signer || '-' }}</template>
       </el-table-column>
@@ -129,8 +139,8 @@ function printSelected() {
         <template #default="{ row }">
           <div class="status-stack">
             <el-tag :type="consentStatusMeta[row.status].type" effect="plain">{{ consentStatusMeta[row.status].label }}</el-tag>
-            <span>医生：{{ hasDoctorSignature(row) ? '已签' : '未签' }}</span>
-            <span>孕产妇：{{ hasPatientSignature(row) ? '已签' : '未签' }}</span>
+            <span>医生：<em :class="hasDoctorSignature(row) ? 'signed' : 'unsigned'">{{ hasDoctorSignature(row) ? '已签' : '未签' }}</em></span>
+            <span>孕产妇：<em :class="hasPatientSignature(row) ? 'signed' : 'unsigned'">{{ hasPatientSignature(row) ? '已签' : '未签' }}</em></span>
           </div>
         </template>
       </el-table-column>
@@ -153,7 +163,6 @@ function printSelected() {
     </el-table>
   </section>
 </template>
-
 <style scoped>
 .consent-list {
   background: #fff;
@@ -218,7 +227,25 @@ function printSelected() {
   font-size: 12px;
   white-space: nowrap;
 }
+
+.status-stack em {
+  font-style: normal;
+  font-weight: 600;
+}
+
+.status-stack .signed {
+  color: #159947;
+}
+
+.status-stack .unsigned {
+  color: #d93026;
+}
 </style>
+
+
+
+
+
 
 
 

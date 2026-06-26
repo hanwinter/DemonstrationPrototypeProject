@@ -79,3 +79,10 @@ function printPage() {
 }
 </style>
 
+
+<style>
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+</style>
