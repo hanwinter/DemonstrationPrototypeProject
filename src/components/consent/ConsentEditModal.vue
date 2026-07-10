@@ -1,5 +1,6 @@
 ﻿<script setup>
-import { reactive, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
+import ConsentTemplateSelector from './ConsentTemplateSelector.vue'
 import {
   consentSceneOptions,
   defaultConfirmText,
@@ -31,18 +32,20 @@ const patient = {
   idNo: '110************1234',
 }
 
-const illnessTemplates = [
-  { name: '高危妊娠告知', content: defaultIllnessSummary },
-  { name: '常规产检告知', content: '孕妇目前产检资料基本完整，本次就诊需继续完善常规孕期检查，并按医嘱定期复查。' },
-  { name: '住院观察告知', content: '孕妇当前情况需住院观察，医生已说明住院期间监测项目、可能风险及后续处理方案。' },
-]
+const illnessTemplates = ref([
+  { id: 1, name: '高危妊娠告知', content: defaultIllnessSummary },
+  { id: 2, name: '常规产检告知', content: '孕妇目前产检资料基本完整，本次就诊需继续完善常规孕期检查，并按医嘱定期复查。' },
+  { id: 3, name: '住院观察告知', content: '孕妇当前情况需住院观察，医生已说明住院期间监测项目、可能风险及后续处理方案。' },
+])
 
-const riskTemplates = [
-  { name: '高危风险模板', content: defaultRiskNotice },
-  { name: '检查风险模板', content: '已向孕妇及家属说明检查目的、检查过程、可能不适、结果偏差及需复查等情况。孕妇及家属已知晓并确认。' },
-  { name: '治疗处置模板', content: '已向孕妇及家属说明拟采取处理措施的必要性、可能获益、潜在风险及替代方案。孕妇及家属已知晓并确认。' },
-]
+const riskTemplates = ref([
+  { id: 4, name: '高危风险模板', content: defaultRiskNotice },
+  { id: 5, name: '检查风险模板', content: '已向孕妇及家属说明检查目的、检查过程、可能不适、结果偏差及需复查等情况。孕妇及家属已知晓并确认。' },
+  { id: 6, name: '治疗处置模板', content: '已向孕妇及家属说明拟采取处理措施的必要性、可能获益、潜在风险及替代方案。孕妇及家属已知晓并确认。' },
+])
 
+const templateSelectorVisible = ref(false)
+const templateField = ref('illnessSummary')
 const form = reactive(createEmptyForm())
 
 watch(
@@ -80,8 +83,18 @@ function payload() {
   return { ...form }
 }
 
-function applyTemplate(field, content) {
-  form[field] = content
+function openTemplateSelector(field) {
+  templateField.value = field
+  templateSelectorVisible.value = true
+}
+
+function useTemplate(template) {
+  form[templateField.value] = template.content
+}
+
+function updateTemplates(templates) {
+  if (templateField.value === 'illnessSummary') illnessTemplates.value = templates
+  else riskTemplates.value = templates
 }
 </script>
 
@@ -141,28 +154,14 @@ function applyTemplate(field, content) {
       <div class="content-field">
         <div class="field-heading">
           <span>病情摘要</span>
-          <el-dropdown trigger="click" @command="applyTemplate('illnessSummary', $event)">
-            <el-button size="small">从模板选择</el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-for="item in illnessTemplates" :key="item.name" :command="item.content">{{ item.name }}</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button size="small" @click="openTemplateSelector('illnessSummary')">从模板选择</el-button>
         </div>
         <el-input v-model="form.illnessSummary" type="textarea" :rows="5" maxlength="2000" show-word-limit />
       </div>
       <div class="content-field">
         <div class="field-heading">
           <span>风险告知</span>
-          <el-dropdown trigger="click" @command="applyTemplate('riskNotice', $event)">
-            <el-button size="small">从模板选择</el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-for="item in riskTemplates" :key="item.name" :command="item.content">{{ item.name }}</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button size="small" @click="openTemplateSelector('riskNotice')">从模板选择</el-button>
         </div>
         <el-input v-model="form.riskNotice" type="textarea" :rows="5" maxlength="2000" show-word-limit />
       </div>
@@ -184,9 +183,16 @@ function applyTemplate(field, content) {
     <template #footer>
       <el-button @click="close">关闭</el-button>
       <el-button @click="emit('preview', payload())">预览</el-button>
-      <el-button type="warning" :disabled="!form.id" title="请先保存后再生成二维码" @click="emit('generate-qr', payload())">生成二维码</el-button>
+      <el-button type="warning" :disabled="!form.id" title="请先保存后再发起患者签字" @click="emit('generate-qr', payload())">患者签字</el-button>
       <el-button type="primary" @click="emit('save-unarchived', payload())">保存</el-button>
     </template>
+    <ConsentTemplateSelector
+      v-model="templateSelectorVisible"
+      :title="templateField === 'illnessSummary' ? '选择病情摘要模板' : '选择风险告知模板'"
+      :templates="templateField === 'illnessSummary' ? illnessTemplates : riskTemplates"
+      @update:templates="updateTemplates"
+      @use="useTemplate"
+    />
   </el-dialog>
 </template>
 
@@ -255,6 +261,8 @@ function applyTemplate(field, content) {
   gap: 24px;
 }
 </style>
+
+
 
 
 

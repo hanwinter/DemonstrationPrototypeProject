@@ -66,13 +66,19 @@ function signerTitle(document) {
           </span>
         </div>
         <div class="signature-meta-row">
-          <span class="signature-label">签字人：</span>
-          <span>{{ document.signer || '____' }} {{ document.signerRole ? `（${document.signerRole}）` : '' }}</span>
-        </div>
-        <div class="signature-meta-row">
           <span class="signature-label">签字时间：</span>
           <span>{{ document.patientSignedAt || '____年__月__日 __时__分' }}</span>
         </div>
+        <template v-if="document.signerRole === '家属代签'">
+          <div class="signature-meta-row">
+            <span class="signature-label">代签人：</span>
+            <span>{{ document.signer || '____' }}</span>
+          </div>
+          <div class="signature-meta-row">
+            <span class="signature-label">与孕妇关系：</span>
+            <span>{{ document.relation || '____' }}</span>
+          </div>
+        </template>
       </div>
     </section>
 
@@ -147,14 +153,18 @@ function signerTitle(document) {
 }
 
 .signature-area {
-  width: 330px;
-  margin: 36px 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  width: 100%;
+  margin: 36px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px;
   color: #202b38;
   font-family: SimSun, "宋体", serif;
   font-size: 10.5pt;
+}
+
+.signature-block {
+  min-width: 0;
 }
 
 .signature-row {
@@ -215,6 +225,7 @@ function signerTitle(document) {
   }
 }
 </style>
+
 
 
 

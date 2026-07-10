@@ -4,6 +4,7 @@ import { Camera, DocumentChecked, EditPen, Files, TrendCharts } from '@element-p
 const navigationItems = [
   { label: 'OCR 识别工作台', path: '/ocr-recognition', icon: DocumentChecked },
   { label: '外院报告影像', path: '/external-report-imaging', icon: Camera },
+  { label: '外院报告影像 v1.0', path: '/external-report-imaging-v1', icon: Camera },
   { label: '产程图', path: '/delivery/partograph', icon: TrendCharts },
   { label: '知情同意书', path: '/consent-management', icon: EditPen },
   { label: '档案补录', path: '/archive-supplement-workbench', icon: Files },

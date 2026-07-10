@@ -20,7 +20,6 @@ import {
 
 const router = useRouter()
 const systemLogoUrl = `${import.meta.env.BASE_URL}system-logo.png`
-const activeArchiveTab = ref('consent')
 const documents = ref(createMockConsentDocuments())
 const selectedDocument = ref(null)
 const editDocument = ref(null)
@@ -97,7 +96,7 @@ function generateQrFromEdit(payload) {
   selectedDocument.value = document
   editVisible.value = false
   qrVisible.value = true
-  ElMessage.success('已生成模拟签字二维码')
+  ElMessage.success('已生成患者签字二维码')
 }
 
 function openQr(document) {
@@ -161,19 +160,6 @@ function openPrint(document) {
   }
   selectedDocument.value = document
   printVisible.value = true
-}
-
-function printSelected(rows) {
-  if (!rows.length) {
-    ElMessage.warning('请先选择需要打印的文书')
-    return
-  }
-  const printable = rows.find((item) => item.status !== 'voided')
-  if (!printable) {
-    ElMessage.warning('已作废文书不允许打印')
-    return
-  }
-  openPrint(printable)
 }
 
 function markPrinted() {
@@ -252,19 +238,6 @@ function refreshList() {
         <div><span>建档机构：</span><strong>{{ consentPatient.institution }}</strong></div>
       </section>
 
-      <section class="archive-tabs">
-        <el-tabs v-model="activeArchiveTab">
-          <el-tab-pane label="基本信息" name="base" disabled />
-          <el-tab-pane label="产检记录" name="check" disabled />
-          <el-tab-pane label="高危管理" name="risk" disabled />
-          <el-tab-pane label="追访记录" name="follow" disabled />
-          <el-tab-pane label="外院报告" name="external" disabled />
-          <el-tab-pane label="知情同意书" name="consent" />
-          <el-tab-pane label="档案资料" name="archive" disabled />
-        </el-tabs>
-      </section>
-
-
       <ConsentList
         :documents="documents"
         @create="openCreate"
@@ -275,7 +248,6 @@ function refreshList() {
         @archive="archiveDocument"
         @print="openPrint"
         @void="voidDocument"
-        @print-selected="printSelected"
         @refresh="refreshList"
       />
     </main>
@@ -291,7 +263,6 @@ function refreshList() {
     <ConsentPreviewModal
       v-model="previewVisible"
       :document="selectedDocument"
-      @edit="openEdit"
       @qr="openQr"
       @doctor-sign="openDoctorSign"
       @archive="archiveDocument"
@@ -334,20 +305,8 @@ function refreshList() {
   padding-bottom: 24px;
 }
 
-.archive-tabs {
+.consent-main :deep(.consent-list) {
   margin-top: 12px;
-  padding: 0 14px;
-  background: #fff;
-  border: 1px solid var(--border-color);
-}
-
-.archive-tabs :deep(.el-tabs__header) {
-  margin: 0;
-}
-
-.archive-tabs :deep(.el-tabs__item) {
-  height: 48px;
-  font-size: 15px;
 }
 
 
@@ -360,6 +319,8 @@ function refreshList() {
   }
 }
 </style>
+
+
 
 
 

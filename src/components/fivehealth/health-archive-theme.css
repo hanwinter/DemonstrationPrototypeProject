@@ -1,0 +1,78 @@
+﻿.five-health-theme {
+  --fh-bg-page: #F5F7FA;
+  --fh-bg-card: #FFFFFF;
+  --fh-text-primary: #1D2939;
+  --fh-text-secondary: #667085;
+  --fh-text-tertiary: #98A2B3;
+  --fh-border-light: #EAECF0;
+  --fh-shadow-card: 0 4px 16px rgba(0, 0, 0, 0.04);
+  --fh-primary: #5B8FF9;
+  --fh-primary-hover: #4F83F1;
+  --fh-primary-light: #EAF2FF;
+  --fh-control-bg: #F2F4F7;
+  --fh-hover-bg: #F5F9FF;
+  --fh-body: #34C759;
+  --fh-vision: #5AC8FA;
+  --fh-psych: #AF52DE;
+  --fh-bone: #FF9F0A;
+  --fh-oral: #30D5C8;
+  --fh-risk-high: #FF6B6B;
+  --fh-risk-high-bg: #FFF1F1;
+  --fh-risk-medium: #FFB547;
+  --fh-risk-medium-bg: #FFF8E7;
+  --fh-risk-low: #34C759;
+  --fh-risk-low-bg: #EDFAF0;
+  --fh-risk-attention: #5B8FF9;
+  --fh-risk-attention-bg: #EAF2FF;
+  --fh-card-radius: 12px;
+  --fh-control-radius: 6px;
+  position: relative;
+  isolation: isolate;
+}
+
+.five-health-theme::before,
+.five-health-theme::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+}
+
+.five-health-theme::before {
+  width: 360px;
+  height: 360px;
+  right: 8%;
+  top: 90px;
+  background: radial-gradient(circle, rgba(91, 143, 249, 0.10), rgba(91, 143, 249, 0));
+}
+
+.five-health-theme::after {
+  width: 300px;
+  height: 300px;
+  left: 6%;
+  bottom: 80px;
+  background: radial-gradient(circle, rgba(52, 199, 89, 0.08), rgba(52, 199, 89, 0));
+}
+
+.five-health-theme .fh-card {
+  background: var(--fh-bg-card);
+  border: 0;
+  border-radius: var(--fh-card-radius);
+  box-shadow: var(--fh-shadow-card);
+}
+
+.five-health-theme .low {
+  color: var(--fh-risk-low);
+  background: var(--fh-risk-low-bg);
+}
+
+.five-health-theme .moderate {
+  color: var(--fh-risk-medium);
+  background: var(--fh-risk-medium-bg);
+}
+
+.five-health-theme .high {
+  color: var(--fh-risk-high);
+  background: var(--fh-risk-high-bg);
+}

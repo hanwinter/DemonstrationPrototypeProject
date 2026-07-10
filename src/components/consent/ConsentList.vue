@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { computed, reactive, ref } from 'vue'
-import { DocumentAdd, Printer, Refresh } from '@element-plus/icons-vue'
+import { computed, reactive } from 'vue'
+import { DocumentAdd, Refresh } from '@element-plus/icons-vue'
 import { consentStatusMeta, consentStatusOptions } from '../../mock/consentDocuments'
 
 const props = defineProps({
@@ -19,21 +19,20 @@ const emit = defineEmits([
   'archive',
   'print',
   'void',
-  'print-selected',
   'refresh',
 ])
 
+const selectableStatusOptions = consentStatusOptions.filter((item) => item.value)
+
 const filters = reactive({
-  status: '',
+  statuses: [],
   dates: [],
   doctor: '',
 })
 
-const selectedRows = ref([])
-
 const filteredDocuments = computed(() =>
   props.documents.filter((item) => {
-    const statusMatched = !filters.status || item.status === filters.status
+    const statusMatched = !filters.statuses.length || filters.statuses.includes(item.status)
     const doctorMatched = !filters.doctor || item.createdDoctor.includes(filters.doctor)
     const dateMatched =
       !filters.dates?.length ||
@@ -54,16 +53,17 @@ function canArchive(row) {
   return row.status === 'unarchived' && hasPatientSignature(row) && hasDoctorSignature(row)
 }
 
-function actionVisible(row, action) {
-  if (action === 'view') return true
-  if (row.status === 'voided') return false
-  if (action === 'edit') return row.status === 'unarchived'
-  if (action === 'qr') return row.status === 'unarchived' && !hasPatientSignature(row)
-  if (action === 'doctor-sign') return row.status === 'unarchived' && !hasDoctorSignature(row)
-  if (action === 'archive') return canArchive(row)
-  if (action === 'print') return row.status === 'archived'
-  if (action === 'void') return row.status !== 'voided'
-  return false
+function actionDisabled(row, action) {
+  if (action === 'view') return false
+  if (action === 'edit') {
+    return row.status !== 'unarchived' || hasPatientSignature(row) || hasDoctorSignature(row)
+  }
+  if (action === 'patient-sign') return row.status !== 'unarchived' || hasPatientSignature(row)
+  if (action === 'doctor-sign') return row.status !== 'unarchived' || hasDoctorSignature(row)
+  if (action === 'archive') return !canArchive(row)
+  if (action === 'print') return row.status !== 'archived'
+  if (action === 'void') return row.status === 'voided'
+  return true
 }
 
 function signerRoleLabel(row) {
@@ -73,24 +73,18 @@ function signerRoleLabel(row) {
   return row.signerRole
 }
 
-function printSelected() {
-  emit('print-selected', selectedRows.value)
-}
 </script>
 
 <template>
   <section class="consent-list">
     <div class="filter-panel">
       <el-form inline label-width="76px">
-        <el-form-item label="文书状态">
-          <el-select v-model="filters.status" class="filter-control">
-            <el-option
-              v-for="item in consentStatusOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
+        <el-form-item label="状态">
+          <el-checkbox-group v-model="filters.statuses" class="status-checkboxes">
+            <el-checkbox v-for="item in selectableStatusOptions" :key="item.value" :value="item.value">
+              {{ item.label }}
+            </el-checkbox>
+          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="创建时间">
           <el-date-picker
@@ -112,7 +106,6 @@ function printSelected() {
       <h2>知情同意书</h2>
       <div class="list-actions">
         <el-button type="primary" :icon="DocumentAdd" @click="emit('create')">新建知情同意书</el-button>
-        <el-button :icon="Printer" @click="printSelected">打印选中</el-button>
         <el-button :icon="Refresh" @click="emit('refresh')">刷新</el-button>
       </div>
     </div>
@@ -121,9 +114,7 @@ function printSelected() {
       class="consent-table"
       :data="filteredDocuments"
       border
-      @selection-change="selectedRows = $event"
     >
-      <el-table-column type="selection" width="44" />
       <el-table-column type="index" label="序号" width="62" />
       <el-table-column prop="documentName" label="文书名称" min-width="150" />
       <el-table-column prop="scene" label="告知场景" width="110" />
@@ -147,16 +138,16 @@ function printSelected() {
       <el-table-column label="归档时间" width="150">
         <template #default="{ row }">{{ row.archivedAt || '-' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="390" fixed="right">
+      <el-table-column label="操作" width="430" fixed="right">
         <template #default="{ row }">
           <div class="row-actions">
-            <el-button v-if="actionVisible(row, 'edit')" link type="primary" @click="emit('edit', row)">编辑</el-button>
+            <el-button link type="primary" :disabled="actionDisabled(row, 'edit')" @click="emit('edit', row)">编辑</el-button>
             <el-button link type="primary" @click="emit('preview', row)">查看</el-button>
-            <el-button v-if="actionVisible(row, 'qr')" link type="warning" @click="emit('qr', row)">二维码</el-button>
-            <el-button v-if="actionVisible(row, 'doctor-sign')" link type="primary" @click="emit('doctor-sign', row)">医生签字</el-button>
-            <el-button v-if="actionVisible(row, 'archive')" link type="success" @click="emit('archive', row)">归档</el-button>
-            <el-button v-if="actionVisible(row, 'print')" link type="primary" @click="emit('print', row)">打印</el-button>
-            <el-button v-if="actionVisible(row, 'void')" link type="danger" @click="emit('void', row)">作废</el-button>
+            <el-button link type="primary" :disabled="actionDisabled(row, 'doctor-sign')" @click="emit('doctor-sign', row)">医生签字</el-button>
+            <el-button link type="warning" :disabled="actionDisabled(row, 'patient-sign')" @click="emit('qr', row)">患者签字</el-button>
+            <el-button link type="success" :disabled="actionDisabled(row, 'archive')" @click="emit('archive', row)">归档</el-button>
+            <el-button link type="primary" :disabled="actionDisabled(row, 'print')" @click="emit('print', row)">打印</el-button>
+            <el-button link type="danger" :disabled="actionDisabled(row, 'void')" @click="emit('void', row)">作废</el-button>
           </div>
         </template>
       </el-table-column>
@@ -199,8 +190,30 @@ function printSelected() {
   border-bottom: 1px solid var(--border-color);
 }
 
+.filter-panel :deep(.el-form--inline .el-form-item),
+.filter-panel :deep(.el-form-item__content) {
+  align-items: center;
+}
+
+.filter-panel :deep(.el-form-item__label) {
+  height: 32px;
+  line-height: 32px;
+}
+
 .filter-control {
   width: 180px;
+}
+
+.status-checkboxes {
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: 16px;
+  white-space: nowrap;
+}
+
+.status-checkboxes :deep(.el-checkbox) {
+  margin-right: 0;
 }
 
 .date-range {
@@ -217,6 +230,12 @@ function printSelected() {
   flex-wrap: nowrap;
   gap: 0 6px;
   white-space: nowrap;
+}
+
+.row-actions :deep(.el-button.is-disabled),
+.row-actions :deep(.el-button.is-disabled:hover),
+.row-actions :deep(.el-button.is-disabled:focus) {
+  color: #a8afb9;
 }
 
 .status-stack {
@@ -241,6 +260,12 @@ function printSelected() {
   color: #d93026;
 }
 </style>
+
+
+
+
+
+
 
 
 

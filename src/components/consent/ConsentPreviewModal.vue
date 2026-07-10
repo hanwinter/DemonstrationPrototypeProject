@@ -13,7 +13,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'edit', 'qr', 'doctor-sign', 'archive', 'print'])
+const emit = defineEmits(['update:modelValue', 'qr', 'doctor-sign', 'archive', 'print'])
 
 function hasPatientSignature() {
   return Boolean(props.document?.patientSignature)
@@ -26,7 +26,6 @@ function hasDoctorSignature() {
 function canShow(action) {
   const document = props.document
   if (!document || document.status === 'voided') return false
-  if (action === 'edit') return document.status === 'unarchived'
   if (action === 'qr') return document.status === 'unarchived' && !hasPatientSignature()
   if (action === 'doctor-sign') return document.status === 'unarchived' && !hasDoctorSignature()
   if (action === 'archive') return document.status === 'unarchived' && hasPatientSignature() && hasDoctorSignature()
@@ -74,8 +73,7 @@ function canShow(action) {
         </dl>
 
         <div class="side-actions">
-          <el-button v-if="canShow('edit')" @click="emit('edit', document)">返回编辑</el-button>
-          <el-button v-if="canShow('qr')" type="warning" @click="emit('qr', document)">二维码</el-button>
+          <el-button v-if="canShow('qr')" type="warning" @click="emit('qr', document)">患者签字</el-button>
           <el-button v-if="canShow('doctor-sign')" type="primary" @click="emit('doctor-sign', document)">医生签字</el-button>
           <el-button v-if="canShow('archive')" type="success" @click="emit('archive', document)">归档</el-button>
           <el-button v-if="canShow('print')" type="primary" @click="emit('print', document)">打印预览</el-button>
@@ -157,6 +155,7 @@ function canShow(action) {
   margin-left: 0;
 }
 </style>
+
 
 
 

@@ -32,6 +32,15 @@ export const defaultRiskNotice =
 export const defaultConfirmText =
   '本人已认真阅读以上内容，医生已就相关病情、风险及注意事项向本人进行说明，本人已知晓并确认。'
 
+export function createMockConsentTemplates() {
+  return [
+    { id: 1, name: '高危妊娠告知模板', version: 'V1.0', content: defaultIllnessSummary },
+    { id: 2, name: '常规产检告知模板', version: 'V1.1', content: '孕妇目前产检资料基本完整，本次就诊需继续完善常规孕期检查，并按医嘱定期复查。' },
+    { id: 3, name: '检查风险告知模板', version: 'V2.0', content: '已向孕妇及家属说明检查目的、检查过程、可能不适、结果偏差及需复查等情况。孕妇及家属已知晓并确认。' },
+    { id: 4, name: '治疗处置告知模板', version: 'V1.0', content: '已向孕妇及家属说明拟采取处理措施的必要性、可能获益、潜在风险及替代方案。孕妇及家属已知晓并确认。' },
+  ]
+}
+
 export function formatNow() {
   const date = new Date()
   const pad = (value) => String(value).padStart(2, '0')

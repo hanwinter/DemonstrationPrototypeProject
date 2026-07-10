@@ -22,6 +22,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import DemoPageNavigation from '../components/DemoPageNavigation.vue'
 
+const props = defineProps({
+  layoutVariant: {
+    type: String,
+    default: 'default',
+  },
+})
+
 const router = useRouter()
 const systemLogoUrl = `${import.meta.env.BASE_URL}system-logo.png`
 const activeTab = ref('capture')
@@ -455,13 +462,17 @@ function voidReport(row) {
               <el-form-item label="报告日期" class="compact-form-item">
                 <el-date-picker v-model="captureForm.reportDate" type="date" value-format="YYYY-MM-DD" />
               </el-form-item>
-              <el-form-item label="检查医院">
-                <el-input v-model="captureForm.hospital" />
+              <el-form-item label="检查医院" class="hospital-form-item">
+                <el-input
+                  v-model="captureForm.hospital"
+                  :type="props.layoutVariant === 'v1' ? 'textarea' : 'text'"
+                  :autosize="props.layoutVariant === 'v1' ? { minRows: 2, maxRows: 2 } : false"
+                />
               </el-form-item>
               <el-form-item label="关联产检日期" class="compact-form-item">
                 <el-date-picker v-model="captureForm.visitDate" type="date" value-format="YYYY-MM-DD" />
               </el-form-item>
-              <el-form-item label="备注">
+              <el-form-item label="备注" class="remark-form-item">
                 <el-input v-model="captureForm.remark" type="textarea" :rows="4" />
               </el-form-item>
             </el-form>
@@ -492,11 +503,14 @@ function voidReport(row) {
 
           <section class="his-card thumb-card">
             <div class="thumb-heading">
-              <div class="card-title">报告图片预览</div>
+              <div class="card-title">
+                {{ props.layoutVariant === 'v1' ? '图片预览' : '报告图片预览' }}
+                <span v-if="props.layoutVariant === 'v1'" class="thumb-total">总页码 {{ thumbnails.length }}</span>
+              </div>
               <div class="thumb-save-actions">
                 <el-button @click="saveDraft">保存草稿</el-button>
                 <el-button type="primary" @click="archiveReport">保存归档</el-button>
-                <el-button @click="router.push('/outpatient')">返回档案</el-button>
+                <el-button v-if="props.layoutVariant !== 'v1'" @click="router.push('/outpatient')">返回档案</el-button>
               </div>
             </div>
             <div class="thumb-list">

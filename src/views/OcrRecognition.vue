@@ -220,7 +220,7 @@ async function scanAgain() {
 }
 
 function returnToOutpatient() {
-  router.push('/outpatient')
+  router.push('/')
 }
 
 async function recognizeAgain() {
