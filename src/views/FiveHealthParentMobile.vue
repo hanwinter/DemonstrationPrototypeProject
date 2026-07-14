@@ -2,10 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  ArrowDownBold,
   ArrowLeft,
+  ArrowUpBold,
   Bell,
   Calendar,
   Document,
+  Download,
   FirstAidKit,
   House,
   Notebook,
@@ -29,6 +32,15 @@ const submittedQuestionnaire = ref(false)
 const selectedSlot = ref('')
 const appointmentDone = ref(false)
 const activeBannerIndex = ref(0)
+const showAllAdvice = ref(false)
+const showReportSheet = ref(false)
+const showDownloadSheet = ref(false)
+const downloadGenerating = ref(false)
+const downloadStatus = ref('idle')
+const downloadMessage = ref('')
+const currentReportId = ref('report-2026-spring')
+const onlyAbnormal = ref(false)
+const expandedResultGroups = ref(['vision', 'weight', 'oral'])
 let bannerTimer = null
 
 const bannerImages = [
@@ -41,7 +53,7 @@ const loginForm = reactive({ phone: '13800001234', code: '' })
 const bindForm = reactive({ name: '', code: '', school: '第一实验小学', className: '', phone: '13800001234' })
 
 const students = reactive([
-  { id: 1, name: '林一凡', gender: '男', age: 9, school: '第一实验小学', className: '三年级 2 班', default: true },
+  { id: 1, name: '林一凡', gender: '男', age: 10, school: '北京市某某小学', className: '五年级2班', default: true },
   { id: 2, name: '林小雨', gender: '女', age: 7, school: '第一实验小学', className: '一年级 1 班', default: false },
 ])
 
@@ -50,23 +62,134 @@ const reports = [
   { id: 2, batch: '2025 年秋季五健筛查', date: '2025-10-18', result: '基本正常', risk: '低风险', abnormal: 1, status: '已生成' },
 ]
 
-const healthItems = [
-  { code: 'vision', shortName: '眼', navName: '视力', name: '视力健康', status: '高风险', summary: '左眼视力下降', abnormalValues: ['左眼视力下降'], result: '4.6', reference: '≥ 5.0', description: '左眼裸眼视力低于正常参考范围，建议结合医生意见进一步复查。', advice: '建议进一步复查，减少近距离用眼，保持良好用眼习惯。', tone: 'high', color: '#f25565', overlayClass: 'overlay-vision' },
-  { code: 'weight', shortName: '体', navName: '体重', name: '体重健康', status: '中风险', summary: 'BMI 偏高', abnormalValues: ['BMI偏高', '腰围偏高', '体脂率偏高'], result: 'BMI：23.8；腰围：72cm；体脂率：偏高', reference: 'BMI：P85-P95；腰围：参考同年龄同性别标准；体脂率：参考同年龄同性别标准', description: 'BMI 处于偏高区间，同时腰围和体脂率提示体重管理需要关注。', advice: '控制含糖饮料和高热量零食，增加中等强度运动。', tone: 'medium', color: '#ff9442', overlayClass: 'overlay-weight' },
-  { code: 'spine', shortName: '脊', navName: '脊柱', name: '脊柱健康', status: '低风险', summary: '轻度异常', abnormalValues: ['轻度脊柱异常'], result: '轻度异常', reference: '建议结合复筛判断', description: '筛查结果提示存在轻度脊柱异常，建议关注坐姿和脊柱发育情况。', advice: '注意坐姿与书包重量，必要时进一步检查。', tone: 'low', color: '#2d85f5', overlayClass: 'overlay-spine' },
-  { code: 'oral', shortName: '齿', navName: '口腔', name: '口腔健康', status: '正常', summary: '未见异常', abnormalValues: ['未见异常'], result: '未见异常', reference: '正常', description: '本次口腔筛查未见明显异常。', advice: '继续保持良好刷牙习惯，定期口腔检查。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-oral' },
-  { code: 'mental', shortName: '心', navName: '心理', name: '心理健康', status: '待填写', summary: '心理量表未完成，暂不能形成综合判断', abnormalValues: ['心理量表未完成'], result: '暂无', reference: '完成量表后生成', description: '心理量表尚未完成，暂不能形成心理健康综合判断。', advice: '请完成心理健康量表，以便生成完整评估结果。', tone: 'pending', color: '#8e68ff', overlayClass: 'overlay-mental' },
+const riskLevelMeta = {
+  high: { label: '高风险', order: 1 },
+  medium: { label: '中风险', order: 2 },
+  low: { label: '需关注', order: 3 },
+  normal: { label: '正常', order: 4 },
+}
+
+const reportCatalog = [
+  {
+    reportId: 'report-2026-spring',
+    name: '2026年春季学生健康筛查',
+    date: '2026-05-20',
+    institution: '北京市某某妇幼保健院',
+    status: '当前报告',
+    assessment: { text: '需关注', tone: 'medium', risk: '中风险', rescreen: '建议复筛' },
+    healthItems: [
+      { code: 'vision', shortName: '眼', navName: '视力', name: '视力健康', status: '高风险', summary: '左眼视力下降', abnormalValues: ['左眼视力下降'], result: '4.6', reference: '≥ 5.0', description: '左眼裸眼视力低于正常参考范围，建议结合医生意见进一步复查。', advice: '建议进一步复查，减少近距离用眼，保持良好用眼习惯。', tone: 'high', color: '#f25565', overlayClass: 'overlay-vision' },
+      { code: 'weight', shortName: '体', navName: '体重', name: '体重健康', status: '中风险', summary: 'BMI 偏高', abnormalValues: ['BMI偏高', '腰围偏高', '体脂率偏高'], result: 'BMI：23.8；腰围：72cm；体脂率：偏高', reference: 'BMI：P85-P95；腰围：参考同年龄同性别标准；体脂率：参考同年龄同性别标准', description: 'BMI 处于偏高区间，同时腰围和体脂率提示体重管理需要关注。', advice: '控制含糖饮料和高热量零食，增加中等强度运动。', tone: 'medium', color: '#ff9442', overlayClass: 'overlay-weight' },
+      { code: 'spine', shortName: '脊', navName: '脊柱', name: '脊柱健康', status: '正常', summary: '未见明显异常', abnormalValues: ['未见明显异常'], result: '未见明显异常', reference: '姿态对称', description: '本次脊柱筛查未见明显异常。', advice: '继续关注坐姿与书包重量，保持规律运动。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-spine' },
+      { code: 'oral', shortName: '齿', navName: '口腔', name: '口腔健康', status: '需关注', summary: '龋齿', abnormalValues: ['龋齿'], result: '2颗', reference: '0颗', description: '本次口腔筛查发现龋齿，建议关注口腔清洁并进行口腔检查。', advice: '加强早晚刷牙和餐后漱口，建议到口腔科进一步检查。', tone: 'low', color: '#2d85f5', overlayClass: 'overlay-oral' },
+      { code: 'mental', shortName: '心', navName: '心理', name: '心理健康', status: '待填写', summary: '心理量表未完成，暂不能形成综合判断', abnormalValues: ['心理量表未完成'], result: '暂无', reference: '完成量表后生成', description: '心理量表尚未完成，暂不能形成心理健康综合判断。', advice: '请完成心理健康量表，以便生成完整评估结果。', tone: 'pending', color: '#8e68ff', overlayClass: 'overlay-mental' },
+    ],
+    abnormalItems: [
+      { id: 'vision-left', healthCode: 'vision', name: '左眼裸眼视力下降', specialty: '视力健康', result: '4.6', reference: '≥5.0', level: 'high' },
+      { id: 'weight-bmi', healthCode: 'weight', name: 'BMI偏高', specialty: '体重健康', result: '23.8', reference: 'P85-P95', level: 'medium' },
+      { id: 'oral-caries', healthCode: 'oral', name: '龋齿', specialty: '口腔健康', result: '2颗', reference: '0颗', level: 'low' },
+    ],
+    interpretation: {
+      text: '本次筛查共发现3项需关注指标，主要涉及视力健康、体重健康和口腔健康。其中左眼裸眼视力下降风险较高，建议优先进行眼科复查；BMI处于偏高区间，建议调整饮食结构并增加日常运动；同时应关注龋齿问题，做好口腔清洁并进行口腔检查。其他筛查项目暂未发现明显异常。',
+      actions: ['建议2周内进行眼科复查', '控制高糖、高热量食物摄入', '每日保证不少于2小时户外活动', '加强口腔清洁，建议进行口腔检查'],
+    },
+    examGroups: [],
+  },
+  {
+    reportId: 'report-2025-autumn',
+    name: '2025年秋季学生健康筛查',
+    date: '2025-10-18',
+    institution: '北京市某某妇幼保健院',
+    status: '已完成',
+    assessment: { text: '基本正常', tone: 'low', risk: '低风险', rescreen: '持续观察' },
+    healthItems: [
+      { code: 'vision', shortName: '眼', navName: '视力', name: '视力健康', status: '需关注', summary: '右眼视力边缘', abnormalValues: ['右眼裸眼视力边缘'], result: '4.9', reference: '≥ 5.0', description: '右眼裸眼视力略低于建议值，暂以观察和用眼习惯干预为主。', advice: '减少连续近距离用眼，保持户外活动，必要时复查视力。', tone: 'low', color: '#2d85f5', overlayClass: 'overlay-vision' },
+      { code: 'weight', shortName: '体', navName: '体重', name: '体重健康', status: '正常', summary: '体重发育正常', abnormalValues: ['未见明显异常'], result: 'BMI：20.4', reference: 'P15-P85', description: '体重相关指标处于同龄参考范围。', advice: '继续保持均衡饮食和规律运动。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-weight' },
+      { code: 'spine', shortName: '脊', navName: '脊柱', name: '脊柱健康', status: '正常', summary: '未见明显异常', abnormalValues: ['未见明显异常'], result: '未见明显异常', reference: '姿态对称', description: '脊柱筛查未见明显异常。', advice: '保持正确坐姿，避免长期单肩负重。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-spine' },
+      { code: 'oral', shortName: '齿', navName: '口腔', name: '口腔健康', status: '正常', summary: '未见明显异常', abnormalValues: ['未见明显异常'], result: '0颗龋齿', reference: '0颗', description: '口腔筛查未见明显异常。', advice: '继续保持早晚刷牙和定期口腔检查。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-oral' },
+      { code: 'mental', shortName: '心', navName: '心理', name: '心理健康', status: '正常', summary: '量表无异常', abnormalValues: ['未见明显异常'], result: '量表通过', reference: '通过', description: '心理量表结果暂未提示明显异常。', advice: '继续关注睡眠、情绪和亲子沟通。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-mental' },
+    ],
+    abnormalItems: [
+      { id: 'vision-right-2025a', healthCode: 'vision', name: '右眼裸眼视力边缘', specialty: '视力健康', result: '4.9', reference: '≥5.0', level: 'low' },
+    ],
+    interpretation: { text: '本次筛查仅发现1项需关注指标，主要为右眼裸眼视力边缘。建议继续保持户外活动和良好用眼习惯，其他筛查项目暂未发现明显异常。', actions: ['连续近距离用眼后注意休息', '每日保持户外活动', '3个月内关注视力变化'] },
+    examGroups: [],
+  },
+  {
+    reportId: 'report-2025-spring',
+    name: '2025年春季学生健康筛查',
+    date: '2025-05-16',
+    institution: '北京市某某妇幼保健院',
+    status: '已完成',
+    assessment: { text: '需关注', tone: 'medium', risk: '中风险', rescreen: '建议干预' },
+    healthItems: [
+      { code: 'vision', shortName: '眼', navName: '视力', name: '视力健康', status: '正常', summary: '视力正常', abnormalValues: ['未见明显异常'], result: '5.0', reference: '≥ 5.0', description: '本次视力筛查在参考范围内。', advice: '继续保持良好用眼习惯。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-vision' },
+      { code: 'weight', shortName: '体', navName: '体重', name: '体重健康', status: '中风险', summary: 'BMI偏高', abnormalValues: ['BMI偏高'], result: '22.9', reference: 'P85-P95', description: 'BMI处于偏高区间，需要进行生活方式干预。', advice: '控制高糖饮料和油炸食物，增加规律运动。', tone: 'medium', color: '#ff9442', overlayClass: 'overlay-weight' },
+      { code: 'spine', shortName: '脊', navName: '脊柱', name: '脊柱健康', status: '需关注', summary: '坐姿不良', abnormalValues: ['坐姿不良'], result: '轻度姿态不对称', reference: '姿态对称', description: '筛查提示轻度姿态不对称，建议关注坐姿和书包重量。', advice: '加强核心训练，避免单肩背包。', tone: 'low', color: '#2d85f5', overlayClass: 'overlay-spine' },
+      { code: 'oral', shortName: '齿', navName: '口腔', name: '口腔健康', status: '正常', summary: '未见明显异常', abnormalValues: ['未见明显异常'], result: '0颗龋齿', reference: '0颗', description: '口腔筛查未见明显异常。', advice: '继续保持口腔清洁。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-oral' },
+      { code: 'mental', shortName: '心', navName: '心理', name: '心理健康', status: '正常', summary: '量表无异常', abnormalValues: ['未见明显异常'], result: '量表通过', reference: '通过', description: '心理量表结果暂未提示明显异常。', advice: '保持规律作息。', tone: 'normal', color: '#14bc89', overlayClass: 'overlay-mental' },
+    ],
+    abnormalItems: [
+      { id: 'weight-bmi-2025s', healthCode: 'weight', name: 'BMI偏高', specialty: '体重健康', result: '22.9', reference: 'P85-P95', level: 'medium' },
+      { id: 'spine-posture-2025s', healthCode: 'spine', name: '坐姿不良', specialty: '脊柱健康', result: '轻度姿态不对称', reference: '姿态对称', level: 'low' },
+    ],
+    interpretation: { text: '本次筛查发现2项需关注指标，主要涉及体重健康和脊柱健康。建议优先调整饮食结构并增加运动，同时关注坐姿和书包负重。视力、口腔和心理筛查暂未发现明显异常。', actions: ['减少高糖、高热量食物摄入', '每周保持规律中等强度运动', '纠正坐姿并避免单肩负重'] },
+    examGroups: [],
+  },
 ]
 
-const selectedHealth = ref((healthItems.find((item) => item.tone === 'high') || healthItems.find((item) => item.tone === 'medium') || healthItems.find((item) => item.tone === 'low') || healthItems[0]).code)
-const showHealthDetailSheet = ref(false)
-
-const abnormalItems = [
-  { name: '左眼裸眼视力下降', value: '4.6', range: '≥ 5.0', level: '高风险', tone: 'high', text: '视力低于同龄建议范围，建议减少连续近距离用眼，并进行眼科复查。' },
-  { name: 'BMI 偏高', value: '23.8', range: 'P85-P95', level: '中风险', tone: 'medium', text: '体重指数处于偏高区间，建议控制含糖饮料和高热量零食。' },
-  { name: '脊柱姿态异常', value: '轻度侧弯倾向', range: '姿态对称', level: '低风险', tone: 'low', text: '姿态有轻度不对称，建议注意坐姿和书包负重。' },
+const defaultExamGroups = [
+  { code: 'vision', name: '视力健康', items: [
+    { name: '右眼裸眼视力', result: '5.0', reference: '≥5.0', status: '正常', level: 'normal' },
+    { name: '左眼裸眼视力', result: '4.6', reference: '≥5.0', status: '高风险', level: 'high' },
+    { name: '右眼屈光筛查', result: '正常', reference: '正常', status: '正常', level: 'normal' },
+    { name: '左眼屈光筛查', result: '临界', reference: '正常', status: '正常', level: 'normal' },
+    { name: '色觉', result: '正常', reference: '正常', status: '正常', level: 'normal' },
+    { name: '眼位', result: '正常', reference: '正常', status: '正常', level: 'normal' },
+    { name: '眼表', result: '未见异常', reference: '未见异常', status: '正常', level: 'normal' },
+    { name: '用眼习惯评估', result: '偏少户外', reference: '每日≥2小时', status: '正常', level: 'normal' },
+  ] },
+  { code: 'weight', name: '体重健康', items: [
+    { name: '身高', result: '138cm', reference: '同龄参考范围', status: '正常', level: 'normal' },
+    { name: '体重', result: '45.3kg', reference: '同龄参考范围', status: '正常', level: 'normal' },
+    { name: 'BMI', result: '23.8', reference: 'P85-P95', status: '中风险', level: 'medium' },
+    { name: '腰围', result: '72cm', reference: '同龄参考范围', status: '正常', level: 'normal' },
+  ] },
+  { code: 'mental', name: '心理健康', items: [
+    { name: '情绪状态', result: '稳定', reference: '稳定', status: '正常', level: 'normal' },
+    { name: '睡眠质量', result: '良好', reference: '良好', status: '正常', level: 'normal' },
+    { name: '同伴交往', result: '正常', reference: '正常', status: '正常', level: 'normal' },
+  ] },
+  { code: 'spine', name: '脊柱健康', items: [
+    { name: '脊柱外观', result: '未见异常', reference: '姿态对称', status: '正常', level: 'normal' },
+    { name: '前屈试验', result: '阴性', reference: '阴性', status: '正常', level: 'normal' },
+  ] },
+  { code: 'oral', name: '口腔健康', items: [
+    { name: '龋齿', result: '2颗', reference: '0颗', status: '需关注', level: 'low' },
+    { name: '牙龈', result: '未见明显异常', reference: '正常', status: '正常', level: 'normal' },
+    { name: '牙列', result: '整齐', reference: '整齐', status: '正常', level: 'normal' },
+    { name: '口腔卫生', result: '一般', reference: '良好', status: '正常', level: 'normal' },
+    { name: '窝沟封闭', result: '建议评估', reference: '按需评估', status: '正常', level: 'normal' },
+  ] },
+  { code: 'routine', name: '其他常规检查', items: [
+    { name: '血压', result: '102/66mmHg', reference: '正常范围', status: '正常', level: 'normal' },
+    { name: '心率', result: '82次/分', reference: '60-100次/分', status: '正常', level: 'normal' },
+    { name: '肺活量', result: '正常', reference: '同龄参考范围', status: '正常', level: 'normal' },
+    { name: '听力', result: '正常', reference: '正常', status: '正常', level: 'normal' },
+    { name: '皮肤', result: '未见异常', reference: '未见异常', status: '正常', level: 'normal' },
+    { name: '内科常规', result: '未见异常', reference: '未见异常', status: '正常', level: 'normal' },
+  ] },
 ]
 
+reportCatalog[0].examGroups = defaultExamGroups
+reportCatalog[1].examGroups = defaultExamGroups.map((group) => group.code === 'vision'
+  ? { ...group, items: group.items.map((item) => item.name === '右眼裸眼视力' ? { ...item, result: '4.9', status: '需关注', level: 'low' } : item.name === '左眼裸眼视力' ? { ...item, result: '5.0', status: '正常', level: 'normal' } : item) }
+  : { ...group, items: group.items.map((item) => ({ ...item, level: 'normal', status: '正常' })) })
+reportCatalog[2].examGroups = defaultExamGroups.map((group) => group.code === 'weight'
+  ? { ...group, items: group.items.map((item) => item.name === 'BMI' ? { ...item, result: '22.9', status: '中风险', level: 'medium' } : item) }
+  : group.code === 'spine'
+    ? { ...group, items: group.items.map((item) => item.name === '脊柱外观' ? { ...item, result: '轻度姿态不对称', status: '需关注', level: 'low' } : item) }
+    : { ...group, items: group.items.map((item) => ({ ...item, level: 'normal', status: '正常' })) })
 const todos = [
   { label: '待查看报告', count: 1, target: 'reports' },
   { label: '待填写问卷', count: 2, target: 'questionnaires' },
@@ -125,18 +248,40 @@ const bodyImage = computed(() => {
   const gender = currentStudent.value?.gender || currentStudent.value?.sex || currentStudent.value?.studentGender || ''
   return gender === '女' ? '/images/body/girl.png' : '/images/body/boy.png'
 })
+const selectedHealth = ref('vision')
+const showHealthDetailSheet = ref(false)
 const currentQuestion = computed(() => questions[questionnaireIndex.value])
 const selectedArticle = computed(() => articles.find((item) => item.id === selectedArticleId.value) || articles[0])
-const selectedHealthItem = computed(() => healthItems.find((item) => item.code === selectedHealth.value) || healthItems[0])
+const currentReport = computed(() => reportCatalog.find((item) => item.reportId === currentReportId.value) || reportCatalog[0])
+const healthItems = computed(() => currentReport.value.healthItems)
+const abnormalItems = computed(() => currentReport.value.abnormalItems)
+const interpretation = computed(() => currentReport.value.interpretation)
+const examGroups = computed(() => currentReport.value.examGroups)
+const selectedHealthItem = computed(() => healthItems.value.find((item) => item.code === selectedHealth.value) || healthItems.value[0])
 const activeHealth = computed(() => selectedHealthItem.value)
-const abnormalHealthCodes = computed(() => healthItems.filter((item) => item.tone !== 'normal').map((item) => item.code))
+const abnormalHealthCodes = computed(() => healthItems.value.filter((item) => item.tone !== 'normal').map((item) => item.code))
 const activeHealthCode = computed(() => selectedHealth.value)
 const activeHealthAbnormalText = computed(() => formatAbnormalValues(activeHealth.value))
 const activeHealthShortName = computed(() => activeHealth.value?.navName || activeHealth.value?.name?.replace('健康', '') || '')
 const activeHealthCheckRows = computed(() => buildCheckRows(activeHealth.value))
-const visibleOverlays = computed(() => healthItems)
+const visibleOverlays = computed(() => healthItems.value)
 const progress = computed(() => Math.round(((questionnaireIndex.value + 1) / questions.length) * 100))
-
+const sortedAbnormalItems = computed(() => [...abnormalItems.value].sort((a, b) => riskLevelMeta[a.level].order - riskLevelMeta[b.level].order))
+const abnormalSummaryText = computed(() => ['high', 'medium', 'low']
+  .map((level) => riskLevelMeta[level].label + abnormalItems.value.filter((item) => item.level === level).length + '项')
+  .join(' · '))
+const visibleAdviceActions = computed(() => showAllAdvice.value ? interpretation.value.actions : interpretation.value.actions.slice(0, 3))
+const visibleExamGroups = computed(() => {
+  const groups = onlyAbnormal.value ? examGroups.value.filter((group) => getAbnormalCount(group) > 0) : examGroups.value
+  return groups.map((group) => ({
+    ...group,
+    visibleItems: onlyAbnormal.value ? group.items.filter((item) => item.level !== 'normal') : group.items,
+  }))
+})
+const hasVisibleExamGroups = computed(() => visibleExamGroups.value.length > 0)
+const allVisibleResultGroupsExpanded = computed(() => hasVisibleExamGroups.value && visibleExamGroups.value.every((group) => expandedResultGroups.value.includes(group.code)))
+const resultGroupToggleText = computed(() => allVisibleResultGroupsExpanded.value ? '全部收起' : '全部展开')
+const reportFileBaseName = computed(() => `${currentStudent.value.name}_${currentReport.value.name}_${currentReport.value.date}`)
 function formatAbnormalValues(item) {
   return item?.abnormalValues?.length ? item.abnormalValues.join('、') : item?.summary || '未见异常'
 }
@@ -167,7 +312,82 @@ function buildCheckRows(item) {
   })
   return rows
 }
-function getOverlayClass(item) {
+function getAbnormalCount(group) {
+  return group.items.filter((item) => item.level !== 'normal').length
+}
+function getGroupSummary(group) {
+  const count = getAbnormalCount(group)
+  if (!count) return `全部正常 / 共${group.items.length}项`
+  const lowCount = group.items.filter((item) => item.level === 'low').length
+  return `${count}项${lowCount === count ? '需关注' : '异常'} / 共${group.items.length}项`
+}
+function openHealthDetail(code) {
+  selectedHealth.value = code
+  showHealthDetailSheet.value = true
+}
+function toggleResultGroup(code) {
+  expandedResultGroups.value = expandedResultGroups.value.includes(code)
+    ? expandedResultGroups.value.filter((item) => item !== code)
+    : [...expandedResultGroups.value, code]
+}
+function toggleAllVisibleResultGroups() {
+  if (!hasVisibleExamGroups.value) return
+  const visibleCodes = visibleExamGroups.value.map((group) => group.code)
+  if (allVisibleResultGroupsExpanded.value) {
+    expandedResultGroups.value = expandedResultGroups.value.filter((code) => !visibleCodes.includes(code))
+    return
+  }
+  expandedResultGroups.value = Array.from(new Set([...expandedResultGroups.value, ...visibleCodes]))
+}function getLatestReportId() {
+  return reportCatalog[0]?.reportId || ''
+}
+function resetReportView() {
+  const firstAbnormal = healthItems.value.find((item) => item.tone !== 'normal') || healthItems.value[0]
+  selectedHealth.value = firstAbnormal?.code || 'vision'
+  showAllAdvice.value = false
+  onlyAbnormal.value = false
+  expandedResultGroups.value = examGroups.value.filter((group) => getAbnormalCount(group) > 0).map((group) => group.code)
+}
+function scrollToReportContent() {
+  requestAnimationFrame(() => {
+    const container = document.querySelector('.phone-content')
+    const target = document.querySelector('.body-health-card')
+    if (!container || !target) return
+    container.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: 'smooth' })
+  })
+}
+function selectReport(reportId) {
+  if (currentReportId.value === reportId) {
+    showReportSheet.value = false
+    return
+  }
+  currentReportId.value = reportId
+  showReportSheet.value = false
+  showHealthDetailSheet.value = false
+  resetReportView()
+}
+function openDownloadSheet() {
+  downloadStatus.value = 'idle'
+  downloadMessage.value = ''
+  showDownloadSheet.value = true
+}
+function generateReportDownload(type) {
+  if (downloadGenerating.value) return
+  downloadGenerating.value = true
+  downloadStatus.value = 'loading'
+  downloadMessage.value = '报告正在生成'
+  const ext = type === 'pdf' ? 'pdf' : 'png'
+  const fileName = `${reportFileBaseName.value}.${ext}`
+  window.setTimeout(() => {
+    downloadGenerating.value = false
+    downloadStatus.value = 'success'
+    downloadMessage.value = `报告生成成功：${fileName}`
+  }, 700)
+}
+function retryDownload() {
+  downloadStatus.value = 'idle'
+  downloadMessage.value = ''
+}function getOverlayClass(item) {
   if (item.code === activeHealthCode.value) return 'active'
   if (['高风险', '中风险', '低风险'].includes(item.status)) return 'visible'
   if (item.status === '待填写') return 'pending'
@@ -203,6 +423,8 @@ function tabTo(target) {
 function switchStudent(id) {
   selectedStudentId.value = id
   students.forEach((item) => { item.default = item.id === id })
+  currentReportId.value = getLatestReportId()
+  resetReportView()
   showChildSheet.value = false
 }
 function confirmBind() {
@@ -289,10 +511,13 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-else-if="page === 'reports'" class="screen report-screen">
-          <article class="student-profile-card"><div><h2>{{ currentStudent.name }}</h2><p>{{ currentStudent.gender }}｜{{ currentStudent.age }} 岁</p><p>{{ currentStudent.school }}｜{{ currentStudent.className }}</p></div><span>体检日期<br><b>2026-04-12</b></span></article>
-          <article class="assessment-card assessment-card-lite"><span class="pill medium assessment-banner">综合评估：需关注</span><div class="assessment-row"><div class="assessment-tags"><span class="risk-text">中风险</span><span class="divider">｜</span><span class="rescreen-text">建议复筛</span></div><button class="notice-link" type="button" @click="go('rescreen')">查看通知 &gt;</button></div></article>
+          <article class="student-profile-card report-student-card">
+            <div class="student-main-info"><div class="student-name-line"><h2>{{ currentStudent.name }}</h2><span>{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</span></div><p>{{ currentStudent.school }}｜{{ currentStudent.className }}</p></div>
+            <div class="report-card-bottom"><div class="current-report-info"><span><em>体检日期：</em><b>{{ currentReport.date }}</b></span><span><em>筛查机构：</em><b>{{ currentReport.institution }}</b></span></div><div class="report-card-actions"><button class="switch-report-btn" type="button" @click="showReportSheet = true">切换报告 <b>›</b></button><button class="download-report-btn" type="button" @click="openDownloadSheet">下载报告 <b>↓</b></button></div></div>
+          </article>
+          <article class="assessment-card assessment-card-lite"><span :class="['pill', currentReport.assessment.tone, 'assessment-banner']">综合评估：{{ currentReport.assessment.text }}</span><div class="assessment-row"><div class="assessment-tags"><span class="risk-text">{{ currentReport.assessment.risk }}</span><span class="divider">｜</span><span class="rescreen-text">{{ currentReport.assessment.rescreen }}</span></div><button class="notice-link" type="button" @click="go('rescreen')">查看通知 &gt;</button></div></article>
           <section class="body-link-card body-health-card">
-            <div class="body-health-header"><div class="section-title">五健健康画像</div><div class="abnormal-count">3项健康需关注</div></div>
+            <div class="body-health-header"><div class="section-title">五健健康画像</div><div class="abnormal-count">{{ abnormalItems.length }}项健康需关注</div></div>
             <div class="body-health-main">
               <div class="child-body body-map-container" aria-label="人体健康画像">
                 <div class="body-map-bg"></div>
@@ -310,13 +535,47 @@ onBeforeUnmount(() => {
               <div class="summary-text">异常值：{{ activeHealthAbnormalText }}</div>
             </div>
           </section>
-          <article class="detail-card health-detail"><span :class="['pill', selectedHealthItem.tone]">{{ selectedHealthItem.status }}</span><h3>{{ selectedHealthItem.name }}</h3><p>异常指标：{{ formatAbnormalValues(selectedHealthItem) }}</p><p>检查结果：{{ selectedHealthItem.result }}</p><p>参考范围：{{ selectedHealthItem.reference }}</p><strong>健康建议：{{ selectedHealthItem.advice }}</strong></article>
-          <h3>异常指标</h3>
-          <article v-for="item in abnormalItems" :key="item.name" class="abnormal-card"><span :class="['pill', item.tone]">{{ item.level }}</span><h3>{{ item.name }}</h3><p>结果：{{ item.value }}｜参考范围：{{ item.range }}</p><small>{{ item.text }}</small></article>
-          <h3>健康建议</h3>
-          <article class="advice-card"><p><b>视力建议：</b>每日户外活动不少于 2 小时，建议眼科复查。</p><p><b>体重建议：</b>减少含糖饮料，增加中等强度运动。</p><p><b>脊柱建议：</b>注意坐姿，避免单肩负重。</p></article>
-          <h3>历史报告</h3>
-          <article v-for="item in reports" :key="item.id" class="history-row"><strong>{{ item.batch }}</strong><span>{{ item.date }} · {{ item.result }} · 异常 {{ item.abnormal }} 项</span></article>
+          <section class="report-section abnormal-summary-section">
+            <div class="report-section-head"><h3>异常指标汇总</h3><span>共{{ abnormalItems.length }}项异常</span></div>
+            <p class="risk-stat-text">{{ abnormalSummaryText }}</p>
+            <div class="abnormal-summary-list">
+              <button v-for="item in sortedAbnormalItems" :key="item.id" type="button" :class="['abnormal-summary-row', item.level]" @click="openHealthDetail(item.healthCode)">
+                <i></i>
+                <span class="summary-main"><strong>{{ item.name }}</strong><small>{{ item.specialty }}</small></span>
+                <span class="summary-values"><b>{{ item.result }}</b><small>参考 {{ item.reference }}</small></span>
+                <em>{{ riskLevelMeta[item.level].label }}</em>
+                <span class="row-arrow">›</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="report-section interpretation-section">
+            <div class="report-section-head"><h3>整体解读与建议</h3></div>
+            <p class="interpretation-text">{{ interpretation.text }}</p>
+            <ol class="action-list">
+              <li v-for="item in visibleAdviceActions" :key="item">{{ item }}</li>
+            </ol>
+            <button class="section-toggle" type="button" @click="showAllAdvice = !showAllAdvice">{{ showAllAdvice ? '收起' : '展开全部' }}</button>
+          </section>
+
+          <section class="report-section exam-results-section">
+            <div class="exam-results-head"><h3>全部体检项目与结果</h3><div class="exam-result-controls"><button class="toggle-all-groups" type="button" :disabled="!hasVisibleExamGroups" @click="toggleAllVisibleResultGroups"><span class="toggle-icon-stack"><el-icon><component :is="allVisibleResultGroupsExpanded ? ArrowUpBold : ArrowDownBold" /></el-icon><el-icon><component :is="allVisibleResultGroupsExpanded ? ArrowUpBold : ArrowDownBold" /></el-icon></span>{{ resultGroupToggleText }}</button><label class="switch-row"><input v-model="onlyAbnormal" type="checkbox" />仅看异常</label></div></div>
+            <div v-if="!hasVisibleExamGroups" class="result-empty">暂无异常项目</div>
+            <div v-else class="result-group-list">
+              <article v-for="group in visibleExamGroups" :key="group.code" class="result-group">
+                <button class="result-group-head" type="button" @click="toggleResultGroup(group.code)">
+                  <span><strong>{{ group.name }}</strong><small>{{ getGroupSummary(group) }}</small></span>
+                  <b>{{ expandedResultGroups.includes(group.code) ? '−' : '+' }}</b>
+                </button>
+                <div v-if="expandedResultGroups.includes(group.code)" class="result-items">
+                  <div v-for="row in group.visibleItems" :key="row.name" class="result-item">
+                    <div class="result-line"><strong>{{ row.name }}</strong><span :class="['result-status', row.level]">{{ row.status }}</span></div>
+                    <div class="result-meta"><b :class="row.level !== 'normal' ? row.level : ''">{{ row.result }}</b><small>参考范围：{{ row.reference }}</small></div>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
         </section>
 
         <section v-else-if="page === 'students'" class="screen">
@@ -403,7 +662,24 @@ onBeforeUnmount(() => {
           </div>
         </article>
       </section>
-      <section v-if="showChildSheet" class="child-sheet-mask" @click.self="showChildSheet = false">
+      <section v-if="showReportSheet" class="child-sheet-mask report-select-mask" @click.self="showReportSheet = false">
+        <article class="child-sheet report-select-sheet">
+          <header><strong>选择体检报告</strong><button type="button" @click="showReportSheet = false">×</button></header>
+          <button v-for="item in reportCatalog" :key="item.reportId" type="button" :class="['report-option', { active: item.reportId === currentReportId }]" @click="selectReport(item.reportId)">
+            <span><b>{{ item.name }}</b><small>{{ item.date }}｜{{ item.institution }}</small></span><em>{{ item.reportId === currentReportId ? '当前' : item.status }}</em>
+          </button>
+        </article>
+      </section>
+      <section v-if="showDownloadSheet" class="child-sheet-mask download-sheet-mask" @click.self="!downloadGenerating && (showDownloadSheet = false)">
+        <article class="child-sheet download-sheet">
+          <header><strong>下载体检报告</strong><button type="button" :disabled="downloadGenerating" @click="showDownloadSheet = false">×</button></header>
+          <button class="download-option" type="button" :disabled="downloadGenerating" @click="generateReportDownload('pdf')"><el-icon><Document /></el-icon><span><b>下载PDF报告</b><small>{{ reportFileBaseName }}.pdf</small></span></button>
+          <button class="download-option" type="button" :disabled="downloadGenerating" @click="generateReportDownload('image')"><el-icon><Download /></el-icon><span><b>保存报告图片</b><small>{{ reportFileBaseName }}.png</small></span></button>
+          <p v-if="downloadMessage" :class="['download-message', downloadStatus]">{{ downloadMessage }}</p>
+          <button v-if="downloadStatus === 'error'" class="retry-download" type="button" @click="retryDownload">重新生成</button>
+          <button class="cancel-download" type="button" :disabled="downloadGenerating" @click="showDownloadSheet = false">取消</button>
+        </article>
+      </section>      <section v-if="showChildSheet" class="child-sheet-mask" @click.self="showChildSheet = false">
         <article class="child-sheet">
           <header><strong>选择就诊人</strong><button type="button" @click="showChildSheet = false">×</button></header>
           <button v-for="item in students" :key="item.id" type="button" class="child-option" @click="switchStudent(item.id)"><span><b>{{ item.name }}｜{{ item.className }}</b><small>{{ item.id === selectedStudentId ? '当前' : '点击切换' }}</small></span><em v-if="item.id === selectedStudentId">当前</em></button>
@@ -821,6 +1097,62 @@ onBeforeUnmount(() => {
 .health-detail-sheet .sheet-scroll-body::-webkit-scrollbar-thumb{background:rgba(96,117,124,.18);border-radius:999px}
 .health-detail-sheet .sheet-scroll-body::-webkit-scrollbar-thumb:hover{background:rgba(96,117,124,.34)}
 .health-detail-sheet .sheet-scroll-body{scrollbar-width:thin;scrollbar-color:rgba(96,117,124,.18) transparent}
+/* 报告页头部信息卡优化 */
+.report-screen .report-student-card{display:flex!important;flex-direction:column!important;gap:9px!important;padding:12px 13px 11px!important;background:linear-gradient(135deg,#DDF8F4 0%,#F3FCFA 58%,#FFFFFF 100%)!important;color:var(--text-title)!important;border:1px solid rgba(216,238,234,.68)!important;border-radius:16px!important;box-shadow:0 8px 22px rgba(38,191,195,.07)!important;overflow:hidden!important}
+.report-screen .report-student-card h2{margin:0;color:var(--text-title)!important;font-size:21px!important;line-height:1.15!important;font-weight:800!important}
+.report-screen .report-student-card p,.report-screen .report-student-card span{color:var(--text-main)!important}
+.report-screen .student-main-info{display:flex!important;flex-direction:column!important;gap:3px!important;min-width:0!important}
+.report-screen .student-name-line{display:flex;align-items:center;gap:9px;min-width:0}.report-screen .student-name-line span{font-size:13px!important;line-height:1.2!important;color:#60757C!important;font-weight:700!important;white-space:nowrap}.report-screen .student-main-info p{font-size:13px!important;line-height:1.35!important;color:#60757C!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report-screen .report-card-bottom{display:grid;grid-template-columns:minmax(0,65%) minmax(92px,35%);gap:10px;align-items:center;padding-top:8px;border-top:1px solid rgba(216,238,234,.68)}
+.report-screen .current-report-info{min-width:0;display:grid;gap:4px}.report-screen .current-report-info span{display:grid;grid-template-columns:68px minmax(0,1fr);align-items:start;font-size:12px!important;line-height:1.35!important;color:#60757C!important;white-space:normal;overflow-wrap:anywhere}.report-screen .current-report-info em{width:68px;font-style:normal;color:#60757C!important;white-space:nowrap;letter-spacing:0}.report-screen .current-report-info b{min-width:0;color:#60757C!important;font-weight:500!important;line-height:1.35!important;overflow-wrap:anywhere;text-align:left}.report-screen .current-report-info span:last-child b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.report-screen .report-card-actions{display:flex!important;flex-direction:column!important;align-items:flex-end!important;justify-content:center!important;gap:6px!important;min-width:0!important;padding:0!important;border:0!important}.report-screen .report-card-actions button{min-width:86px;height:36px;padding:0 9px;border-radius:10px;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:flex-end;gap:4px;background:rgba(255,255,255,.48);transition:background .16s,transform .16s}.report-screen .report-card-actions button:active{transform:scale(.98);background:rgba(255,255,255,.72)}.report-screen .report-card-actions b{font-size:15px;line-height:1;font-weight:900}.switch-report-btn{border:1px solid rgba(18,168,173,.18);color:var(--primary-dark)!important}.download-report-btn{border:1px solid rgba(96,117,124,.16);color:#60757C!important}
+.report-select-sheet,.download-sheet{padding-bottom:calc(18px + env(safe-area-inset-bottom))!important}.report-option{width:100%;min-height:62px;margin-top:8px;padding:10px 12px;border:1px solid rgba(216,238,234,.82);border-radius:15px;background:#FAFEFD;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}.report-option span{min-width:0;display:flex;flex-direction:column;gap:4px}.report-option b{color:var(--text-title);font-size:14px;line-height:1.3}.report-option small{color:var(--text-main);font-size:12px;line-height:1.35}.report-option em{flex:none;padding:4px 8px;border-radius:999px;background:#F3F6F7;color:#60757C;font-size:12px;font-style:normal;font-weight:800}.report-option.active{border-color:rgba(38,191,195,.42);background:var(--primary-tint);box-shadow:inset 3px 0 0 var(--primary)}.report-option.active em{background:var(--primary-soft);color:var(--primary-dark)}
+.download-option{width:100%;min-height:56px;margin-top:8px;padding:10px 12px;border:1px solid rgba(216,238,234,.82);border-radius:15px;background:#FAFEFD;display:flex;align-items:center;gap:10px;text-align:left;color:var(--text-title)}.download-option:disabled{opacity:.62}.download-option .el-icon{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary-dark);font-size:16px}.download-option span{min-width:0;display:flex;flex-direction:column;gap:3px}.download-option b{font-size:14px;color:var(--text-title)}.download-option small{font-size:11px;color:var(--text-sub);word-break:break-all}.download-message{margin:10px 2px 0!important;padding:9px 10px;border-radius:12px;font-size:13px!important;line-height:1.4!important}.download-message.loading{color:#C76D12;background:#FFF2DE}.download-message.success{color:var(--primary-dark);background:var(--primary-soft)}.download-message.error{color:var(--risk-high);background:var(--risk-high-bg)}.retry-download,.cancel-download{width:100%;height:40px;margin-top:9px;border-radius:13px;font-weight:800}.retry-download{border:0;background:var(--primary-soft);color:var(--primary-dark)}.cancel-download{border:0;background:#F3F6F7;color:#60757C}.cancel-download:disabled{opacity:.58}
+/* 报告页详细结果优化 */
+.report-screen{padding-bottom:18px!important}
+.report-section{padding:14px 15px;border-radius:16px;background:#fff;border:1px solid rgba(216,238,234,.58);box-shadow:0 8px 22px rgba(18,168,173,.055)}
+.report-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.report-section-head h3{color:#20343A;font-size:16px;font-weight:800;line-height:1.2}
+.report-section-head>span{flex:none;color:#12A8AD;font-size:12px;font-weight:800}
+.risk-stat-text{margin:0 0 10px!important;color:#60757C;font-size:13px!important;line-height:1.4!important}
+.abnormal-summary-list{display:flex;flex-direction:column;border-top:1px solid rgba(216,238,234,.72)}
+.abnormal-summary-row{position:relative;width:100%;min-height:58px;padding:9px 0 9px 10px;border:0;border-bottom:1px solid rgba(216,238,234,.72);background:transparent;display:grid;grid-template-columns:4px minmax(0,1.15fr) minmax(72px,.85fr) auto 14px;align-items:center;gap:8px;text-align:left;color:#20343A}
+.abnormal-summary-row:last-child{border-bottom:0}
+.abnormal-summary-row i{width:4px;height:36px;border-radius:999px;background:#9AADB2}
+.abnormal-summary-row.high i{background:#F25565}.abnormal-summary-row.medium i{background:#FF9442}.abnormal-summary-row.low i{background:#2D85F5}
+.summary-main,.summary-values{min-width:0;display:flex;flex-direction:column;gap:3px}
+.summary-main strong{font-size:14px;font-weight:800;line-height:1.25;color:#20343A}.summary-main small,.summary-values small{color:#7D8F95;font-size:11px;line-height:1.25}.summary-values b{font-size:13px;color:#20343A;line-height:1.25}
+.abnormal-summary-row em{padding:3px 7px;border-radius:999px;font-size:11px;font-style:normal;font-weight:800;white-space:nowrap;background:#F3F6F7;color:#60757C}
+.abnormal-summary-row.high em{color:#CF3F3F;background:#FFE8E8}.abnormal-summary-row.medium em{color:#C76D12;background:#FFF2DE}.abnormal-summary-row.low em{color:#2478C9;background:#E7F2FF}
+.row-arrow{color:#9AADB2;font-size:18px;line-height:1}
+.interpretation-text{color:#40545A!important;font-size:14px!important;line-height:1.7!important}
+.action-list{margin:10px 0 0;padding-left:22px;display:grid;gap:7px;color:#20343A;font-size:14px;line-height:1.45;font-weight:700}
+.action-list li::marker{color:#12A8AD;font-weight:800}
+.section-toggle{align-self:flex-start;margin-top:10px;border:0;background:transparent;color:#12A8AD;font-size:13px;font-weight:800;padding:0}
+.switch-row{flex:none;display:flex;align-items:center;gap:6px;color:#60757C;font-size:12px;font-weight:800;white-space:nowrap}
+.switch-row input{appearance:none;width:32px;height:18px;padding:0;border:0;border-radius:999px;background:#DCEBE8;position:relative;transition:.16s}
+.switch-row input::after{content:'';position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(32,52,58,.18);transition:.16s}
+.switch-row input:checked{background:#12A8AD}.switch-row input:checked::after{transform:translateX(14px)}
+.exam-results-head{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(216,238,234,.62)}
+.exam-results-head h3{color:#20343A;font-size:16px;font-weight:800;line-height:1.2}
+.exam-result-controls{height:38px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toggle-all-groups{appearance:none;-webkit-appearance:none;box-sizing:border-box;height:34px;min-width:104px;padding:0 12px;border:1px solid rgba(38,191,195,.14);border-radius:17px;background:rgba(228,248,246,.78);box-shadow:none;color:var(--primary-dark);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:500;line-height:1;white-space:nowrap;transition:background .16s,color .16s;border-image:none;outline:0}
+.toggle-icon-stack{width:14px;height:16px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;color:currentColor;line-height:1;flex:none}
+.toggle-icon-stack .el-icon{width:14px;height:7px;font-size:14px;line-height:7px;color:currentColor}.toggle-icon-stack .el-icon + .el-icon{margin-top:-2px}
+.toggle-all-groups:hover:not(:disabled){background:rgba(216,246,243,.92)}
+.toggle-all-groups:active:not(:disabled){background:rgba(202,241,237,.98)}
+.toggle-all-groups:disabled{color:#A6B5B9;background:#F3F6F7;border-color:#EEF3F2;cursor:not-allowed}
+.exam-result-controls .switch-row{margin-left:auto;align-self:center}
+.result-empty{min-height:54px;border-radius:13px;background:#FAFEFD;border:1px dashed rgba(216,238,234,.92);display:grid;place-items:center;color:#9AADB2;font-size:13px;font-weight:700}.result-group-list{display:flex;flex-direction:column;gap:8px}
+.result-group{border:1px solid rgba(216,238,234,.72);border-radius:14px;background:#FAFEFD;overflow:hidden}
+.result-group-head{width:100%;min-height:52px;padding:10px 12px;border:0;background:transparent;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left}
+.result-group-head span{min-width:0;display:flex;flex-direction:column;gap:3px}.result-group-head strong{color:#20343A;font-size:14px}.result-group-head small{color:#7D8F95;font-size:12px}.result-group-head b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#E4F8F6;color:#12A8AD;font-size:16px;line-height:1}
+.result-items{border-top:1px solid rgba(216,238,234,.72);background:#fff;animation:resultGroupOpen .16s ease-out}
+.result-item{padding:9px 12px;border-bottom:1px solid rgba(216,238,234,.62)}.result-item:last-child{border-bottom:0}
+.result-line{display:flex;align-items:center;justify-content:space-between;gap:10px}.result-line strong{min-width:0;color:#20343A;font-size:14px;line-height:1.35}.result-status{flex:none;padding:3px 7px;border-radius:999px;background:#F3F6F7;color:#60757C;font-size:11px;font-weight:800}.result-status.high{color:#CF3F3F;background:#FFE8E8}.result-status.medium{color:#C76D12;background:#FFF2DE}.result-status.low{color:#2478C9;background:#E7F2FF}
+.result-meta{margin-top:5px;display:flex;align-items:center;justify-content:space-between;gap:10px;color:#60757C;font-size:12px;line-height:1.35}.result-meta b{color:#40545A;font-size:13px}.result-meta b.high{color:#CF3F3F}.result-meta b.medium{color:#C76D12}.result-meta b.low{color:#2478C9}.result-meta small{text-align:right;color:#7D8F95}
+@keyframes resultGroupOpen{from{opacity:.45;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:360px){.abnormal-summary-row{grid-template-columns:4px minmax(0,1fr) auto 14px}.summary-values{grid-column:2/3}.abnormal-summary-row em{grid-column:3/4;grid-row:1/3}.row-arrow{grid-column:4/5;grid-row:1/3}.result-meta{align-items:flex-start;flex-direction:column;gap:3px}.result-meta small{text-align:left}}
 /* 真机移动端：去掉电脑演示外壳，按竖屏 H5 全屏展示 */
 @media (hover:none) and (pointer:coarse), (max-width:768px){
   .parent-demo{width:100vw!important;min-height:100dvh!important;height:100dvh!important;padding:0!important;margin:0!important;background:var(--bg-page)!important;overflow:hidden!important}
@@ -836,6 +1168,33 @@ onBeforeUnmount(() => {
   .parent-demo::before{content:'请将手机竖屏查看';position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:#F8FEFC;color:#12A8AD;font-size:18px;font-weight:800;letter-spacing:0}
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
