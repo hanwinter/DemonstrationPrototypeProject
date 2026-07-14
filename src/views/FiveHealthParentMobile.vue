@@ -1235,4 +1235,83 @@ onBeforeUnmount(() => {
 /* recovery: route, signup, questionnaire, mine and rescreen fixes */
 .bottom-tabs{display:flex!important;align-items:center!important;justify-content:space-around!important;grid-template-columns:none!important}.bottom-tabs button{flex:1 1 25%!important;min-width:0!important}.phone-shell:has(.signup-screen) .bottom-tabs,.phone-shell:has(.rescreen-screen) .bottom-tabs,.phone-shell:has(.student-edit-screen) .bottom-tabs,.phone-shell:has(.profile-screen) .bottom-tabs{display:none!important}.phone-shell:has(.signup-screen) .phone-content,.phone-shell:has(.rescreen-screen) .phone-content,.phone-shell:has(.profile-screen) .phone-content,.phone-shell:has(.student-edit-screen) .phone-content{height:calc(100% - 54px)!important;padding-bottom:118px!important}.signup-screen{gap:12px!important;padding-bottom:118px!important}.signup-plan-card,.signup-section,.rescreen-notice-card,.rescreen-detail-card{padding:15px;border-radius:16px;background:#fff;border:1px solid rgba(216,238,234,.65);box-shadow:0 10px 28px rgba(38,191,195,.08)}.signup-card-head,.signup-section-title,.paid-group-title,.rescreen-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.signup-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px;color:#60757C;font-size:13px}.base-project-row{padding:10px 0;border-top:1px solid rgba(216,238,234,.7)}.base-project-row strong{display:block;margin-bottom:4px}.base-project-row span{color:#60757C;font-size:13px;line-height:1.55}.student-confirm-card{display:flex;flex-direction:column;gap:10px}.paid-deadline,.paid-collapsed-summary{margin-top:8px;color:#60757C;font-size:13px;line-height:1.55}.paid-category-tabs{display:flex;gap:8px;overflow:auto;margin:12px 0 10px;padding-bottom:2px}.paid-category-tabs button{height:30px;padding:0 12px;border:1px solid rgba(216,238,234,.8);border-radius:999px;background:#fff;color:#60757C;white-space:nowrap}.paid-category-tabs button.active{background:#E4F8F6;color:#12A8AD;border-color:#E4F8F6;font-weight:700}.paid-group{margin-top:10px}.paid-group-title span{color:#9AADB2;font-size:12px}.paid-project-row{width:100%;min-height:40px;margin-top:7px;padding:8px 10px;border:1px solid rgba(216,238,234,.8);border-radius:12px;background:#FAFEFD;display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:8px;text-align:left;color:#20343A}.paid-project-row i{font-style:normal;color:#12A8AD}.paid-project-row b{color:#12A8AD}.paid-project-row.selected{background:#E4F8F6;border-color:#12A8AD}.paid-project-row.disabled{opacity:.65}.order-items{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.order-items span{padding:4px 8px;border-radius:999px;background:#F0FCFA;color:#60757C;font-size:12px}.signup-bottom-bar{position:absolute;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:10;min-height:64px;padding:10px 12px;border-radius:18px;background:rgba(255,255,255,.96);box-shadow:0 -8px 28px rgba(32,52,58,.12);display:flex;align-items:center;justify-content:space-between;gap:10px}.signup-bottom-bar div{display:flex;flex-direction:column;gap:3px}.signup-bottom-bar span{color:#60757C;font-size:12px}.signup-bottom-bar strong{font-size:20px;color:#12A8AD}.signup-bottom-bar button{height:42px;min-width:132px;border-radius:14px;border:0;padding:0 13px;font-weight:700}.result-sheet{display:flex;flex-direction:column;gap:12px}.questionnaire-card{min-height:64px;padding:12px 13px!important}.questionnaire-card-main{flex:1;min-width:0}.questionnaire-card-main p{margin-top:4px!important;color:#7C9298!important;font-size:12px!important;white-space:nowrap}.questionnaire-card-actions{display:flex;align-items:center;gap:8px;flex:none}.questionnaire-status{height:20px;padding:0 8px;border-radius:10px;font-size:11px;line-height:20px;white-space:nowrap}.questionnaire-status.todo{color:#7C58BC;background:#F1EAFF}.questionnaire-status.progressing{color:#C76D12;background:#FFF2DE}.questionnaire-status.done{color:#0D8F68;background:#E5F8F0}.questionnaire-status.expired{color:#7B878D;background:#EEF2F2}.questionnaire-card button{height:30px;padding:0 10px;font-size:12px}.question-screen .option{min-height:46px!important;height:auto!important;padding:0 14px!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important}.question-screen .option input{width:16px!important;flex:0 0 16px!important;margin:0!important}.question-screen .option span{flex:1!important;min-width:0!important;text-align:left!important;white-space:normal!important;word-break:normal!important}.question-screen .option.selected{background:#E4F8F6!important;border-color:#12A8AD!important;color:#20343A!important}.mine-profile-card{display:flex;flex-direction:column;gap:6px}.profile-form-card select{width:100%;height:44px;border:1px solid #D8EEEA;border-radius:12px;padding:0 11px;background:#FAFEFD;color:#20343A;font:inherit}.save-tip{color:#12A8AD;text-align:center}.student-manage-card{align-items:flex-start!important}.student-actions{display:flex;flex-direction:column;gap:7px;flex:none}.student-actions button{height:30px;padding:0 10px}.rescreen-status{height:24px;padding:0 9px;border-radius:999px;background:#FFF4E8;color:#F2994A;font-size:12px;line-height:24px}.rescreen-info-list{margin-top:12px;display:flex;flex-direction:column;gap:8px}.rescreen-info-list p,.rescreen-detail-card p{color:#60757C;font-size:13px;line-height:1.65}.rescreen-detail-card{display:flex;flex-direction:column;gap:10px}
 
+
+/* signup visual recovery 2026-07-14 */
+.phone-shell:has(.signup-screen){background:linear-gradient(180deg,#EAF8F5 0%,#F8FEFC 48%,#FFFFFF 100%)!important}
+.phone-shell:has(.signup-screen) .phone-content{height:calc(100% - 54px)!important;padding:12px 12px 132px!important;background:linear-gradient(180deg,#EAF8F5 0%,#F8FEFC 42%,#FFFFFF 100%)!important;scroll-padding-bottom:132px!important}
+.phone-shell:has(.signup-screen) .bottom-tabs{display:none!important}
+.signup-screen{gap:12px!important;padding:0 0 132px!important;position:static!important;color:#20343A!important}
+.signup-screen .page-title{position:sticky;top:-12px;z-index:9;margin:-12px -12px 0;padding:12px 12px 10px;background:rgba(248,254,252,.96);backdrop-filter:blur(12px);border-bottom:1px solid rgba(216,238,234,.7)}
+.signup-screen .page-title h2{font-size:19px!important;font-weight:800!important;color:#20343A!important;line-height:34px!important}
+.signup-screen .page-title button{width:34px!important;height:34px!important;flex:none!important;background:#E4F8F6!important;color:#12A8AD!important;border:1px solid rgba(216,238,234,.9)!important;box-shadow:none!important}
+.signup-plan-card{position:relative;overflow:hidden;padding:16px 15px!important;border:0!important;border-radius:20px!important;background:linear-gradient(135deg,#46D2D2 0%,#12A8AD 100%)!important;box-shadow:0 14px 32px rgba(18,168,173,.18)!important;color:#fff!important}
+.signup-plan-card::after{content:"";position:absolute;right:-26px;top:-28px;width:116px;height:116px;border-radius:50%;background:rgba(255,255,255,.14)}
+.signup-plan-card .signup-card-head{position:relative;z-index:1;align-items:flex-start!important;gap:10px!important}
+.signup-plan-card .signup-card-head strong{max-width:220px;color:#fff!important;font-size:18px!important;font-weight:800!important;line-height:1.35!important}
+.signup-plan-card .pill{height:24px;padding:0 9px!important;border-radius:999px!important;background:rgba(255,255,255,.22)!important;color:#fff!important;border:1px solid rgba(255,255,255,.28)!important;line-height:24px!important;font-size:12px!important;font-weight:700!important;white-space:nowrap!important}
+.signup-info-grid{position:relative;z-index:1;margin-top:14px!important;grid-template-columns:1fr 1fr!important;gap:8px!important;color:rgba(255,255,255,.9)!important;font-size:12px!important;line-height:1.35!important}
+.signup-info-grid span{min-height:30px;padding:7px 8px;border-radius:12px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.92)!important}
+.signup-section{padding:14px!important;border:1px solid rgba(216,238,234,.72)!important;border-radius:18px!important;background:#fff!important;box-shadow:0 9px 24px rgba(38,191,195,.075)!important}
+.signup-section-title{min-height:26px;margin-bottom:8px!important;align-items:center!important}
+.signup-section-title strong{color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.3!important}
+.signup-section-title button{height:28px;padding:0 10px;border:1px solid rgba(216,238,234,.85);border-radius:999px;background:#F0FCFA;color:#12A8AD;font-size:12px;font-weight:700}
+.signup-section>p{color:#60757C!important;font-size:13px!important;line-height:1.65!important;margin:0!important}
+.base-project-list{margin-top:10px!important;border-top:1px solid rgba(216,238,234,.72)!important}
+.base-project-row{padding:11px 0 10px!important;border-top:0!important;border-bottom:1px solid rgba(216,238,234,.62)!important}
+.base-project-row:last-child{border-bottom:0!important;padding-bottom:2px!important}
+.base-project-row strong{display:block!important;margin:0 0 5px!important;color:#20343A!important;font-size:14px!important;font-weight:700!important;line-height:1.3!important}
+.base-project-row span{display:block!important;color:#60757C!important;font-size:13px!important;line-height:1.65!important;word-break:normal!important}
+.student-confirm-card label{display:flex!important;flex-direction:column!important;gap:6px!important;color:#60757C!important;font-size:13px!important;font-weight:600!important}
+.student-confirm-card input,.student-confirm-card textarea{width:100%!important;border:1px solid rgba(216,238,234,.95)!important;border-radius:13px!important;background:#FAFEFD!important;color:#20343A!important;font-size:14px!important;box-shadow:none!important}
+.student-confirm-card input{height:42px!important;padding:0 11px!important}
+.student-confirm-card textarea{min-height:76px!important;padding:10px 11px!important;line-height:1.55!important}
+.paid-project-section{padding-bottom:16px!important}
+.paid-deadline,.paid-collapsed-summary{margin-top:8px!important;padding:8px 10px;border-radius:12px;background:#F8FEFC;color:#60757C!important;font-size:12px!important;line-height:1.55!important;border:1px solid rgba(216,238,234,.62)}
+.paid-category-tabs{display:flex!important;gap:8px!important;overflow-x:auto!important;margin:12px -2px 10px!important;padding:0 2px 4px!important;scrollbar-width:none!important}
+.paid-category-tabs::-webkit-scrollbar{display:none!important}
+.paid-category-tabs button{flex:0 0 auto;height:30px!important;padding:0 12px!important;border-radius:999px!important;border:1px solid rgba(216,238,234,.9)!important;background:#fff!important;color:#60757C!important;font-size:12px!important;font-weight:600!important;box-shadow:none!important}
+.paid-category-tabs button.active{background:#E4F8F6!important;border-color:#12A8AD!important;color:#12A8AD!important;font-weight:800!important}
+.paid-group{margin-top:12px!important;padding-top:2px!important}
+.paid-group-title{height:28px!important;margin-bottom:6px!important;display:flex!important;align-items:center!important;justify-content:space-between!important}
+.paid-group-title strong{font-size:14px!important;color:#20343A!important;font-weight:800!important}
+.paid-group-title span{height:20px;padding:0 7px;border-radius:999px;background:#F0FCFA;color:#8AA0A6!important;font-size:11px!important;line-height:20px!important}
+.paid-project-row{width:100%!important;min-height:44px!important;margin-top:7px!important;padding:9px 10px!important;border:1px solid rgba(216,238,234,.82)!important;border-radius:13px!important;background:#FAFEFD!important;display:grid!important;grid-template-columns:24px minmax(0,1fr) auto!important;align-items:center!important;gap:8px!important;text-align:left!important;box-shadow:none!important;transition:background .15s ease,border-color .15s ease!important}
+.paid-project-row i{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;color:#12A8AD!important;font-style:normal!important;font-size:14px!important;font-weight:800!important;line-height:20px!important}
+.paid-project-row span{min-width:0;color:#20343A!important;font-size:14px!important;font-weight:600!important;line-height:1.35!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.paid-project-row b{color:#12A8AD!important;font-size:14px!important;font-weight:800!important;white-space:nowrap!important}
+.paid-project-row.selected{background:#E4F8F6!important;border-color:#12A8AD!important;box-shadow:0 0 0 2px rgba(18,168,173,.08)!important}
+.paid-project-row.disabled{opacity:.62!important;cursor:not-allowed!important}
+.order-summary-card{background:#F8FEFC!important}
+.order-summary-card .signup-section-title span{height:22px;padding:0 8px;border-radius:999px;background:#E4F8F6;color:#12A8AD;font-size:12px;line-height:22px;font-weight:700}
+.order-summary-card p{margin-top:6px!important;color:#60757C!important;font-size:13px!important;line-height:1.55!important}
+.order-items{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin:10px 0!important}
+.order-items span{padding:5px 8px!important;border-radius:999px!important;background:#fff!important;border:1px solid rgba(216,238,234,.7)!important;color:#60757C!important;font-size:12px!important;line-height:1.2!important}
+.order-summary-card>strong{display:block;margin-top:4px;color:#12A8AD!important;font-size:16px!important;font-weight:800!important;text-align:right!important}
+.signup-bottom-bar{position:absolute!important;left:10px!important;right:10px!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;z-index:30!important;min-height:66px!important;padding:10px 12px!important;border-radius:20px!important;background:rgba(255,255,255,.97)!important;border:1px solid rgba(216,238,234,.92)!important;box-shadow:0 -10px 30px rgba(32,52,58,.14)!important;backdrop-filter:blur(14px)!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}
+.signup-bottom-bar div{min-width:76px;display:flex!important;flex-direction:column!important;gap:2px!important}
+.signup-bottom-bar span{color:#8AA0A6!important;font-size:12px!important;line-height:1.2!important}
+.signup-bottom-bar strong{color:#12A8AD!important;font-size:22px!important;font-weight:900!important;line-height:1.15!important}
+.signup-bottom-bar button{flex:0 0 auto;max-width:190px;min-width:118px!important;height:44px!important;padding:0 13px!important;border-radius:15px!important;border:0!important;font-size:13px!important;font-weight:800!important;line-height:1.2!important;white-space:normal!important;box-shadow:0 10px 22px rgba(18,168,173,.18)!important}
+.signup-bottom-bar .ghost{background:#F0FCFA!important;color:#12A8AD!important;border:1px solid rgba(216,238,234,.9)!important;box-shadow:none!important}
+.phone-shell:has(.signup-screen) .child-sheet-mask{z-index:50!important}
+
+
+/* signup paid project prompt refinement 2026-07-14 */
+.phone-shell:has(.signup-screen) .paid-group-list{padding-bottom:18px!important}
+.signup-screen .base-project-card{padding-bottom:12px!important}
+.signup-screen .base-project-card .signup-section-title{margin-bottom:4px!important}
+.signup-screen .base-project-card>p{margin-bottom:2px!important;color:#7C9298!important}
+.base-project-row{display:block!important;background:transparent!important}
+.base-project-row strong{letter-spacing:0!important}
+.base-project-row span{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+.paid-project-section .signup-section-title{margin-bottom:6px!important}
+.paid-project-section>p:first-of-type{color:#60757C!important}
+.paid-collapsed-summary{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:38px!important;font-weight:700!important;color:#12A8AD!important;background:#F0FCFA!important;border-color:#D8EEEA!important}
+.paid-collapsed-summary::before{content:"订单摘要";color:#8AA0A6;font-size:12px;font-weight:600}
+.paid-group-list{margin-bottom:8px!important}
+.paid-project-row span::after{display:none!important;content:none!important}
+.paid-project-row em,.paid-project-row small,.paid-project-row .tag,.paid-project-row .label{display:none!important}
+.signup-bottom-bar{width:auto!important;max-width:none!important}
+.phone-shell:has(.signup-screen) .signup-screen::after{content:"";display:block;height:18px;flex:0 0 18px}
+
 </style>
