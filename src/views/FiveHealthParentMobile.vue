@@ -462,30 +462,50 @@ function handleBack() {
   }
   router.push('/')
 }
-function go(target) {
-  if (target === 'students') {
-    studentsBackTarget.value = page.value === 'mine' || activeTab.value === 'mine' ? 'mine' : 'home'
-  }
-  if (target === 'rescreen') {
-    rescreenBackTarget.value = page.value === 'reports' || activeTab.value === 'reports' ? 'reports' : 'home'
-  }
-  if (target === 'questionnaires' && page.value !== 'questionnaireForm') {
-    questionnairesBackTarget.value = page.value === 'home' ? 'home' : 'questionnaires'
-  }
-  if (target === 'reports') {
-    reportsBackTarget.value = page.value === 'home' ? 'home' : 'reports'
-  }
+function setPrimaryPage(target) {
   page.value = target
   if (['home', 'reports', 'questionnaires', 'mine'].includes(target)) activeTab.value = target
 }
+function go(target) {
+  const sourcePage = page.value
+  const sourceTab = activeTab.value
+  if (target === 'students') {
+    studentsBackTarget.value = sourcePage === 'mine' || sourceTab === 'mine' ? 'mine' : 'home'
+  }
+  if (target === 'rescreen') {
+    rescreenBackTarget.value = sourcePage === 'reports' || sourceTab === 'reports' ? 'reports' : 'home'
+  }
+  if (target === 'questionnaires' && sourcePage !== 'questionnaireForm') {
+    questionnairesBackTarget.value = sourcePage === 'home' ? 'home' : 'questionnaires'
+  }
+  if (target === 'reports') {
+    reportsBackTarget.value = sourcePage === 'home' ? 'home' : 'reports'
+  }
+  page.value = target
+  if (target === 'reports') {
+    activeTab.value = reportsBackTarget.value === 'home' ? 'home' : 'reports'
+    return
+  }
+  if (target === 'questionnaires') {
+    activeTab.value = questionnairesBackTarget.value === 'home' ? 'home' : 'questionnaires'
+    return
+  }
+  if (['home', 'mine'].includes(target)) activeTab.value = target
+}
 function backFromStudents() {
-  go(studentsBackTarget.value)
+  setPrimaryPage(studentsBackTarget.value)
 }
 function backFromRescreen() {
-  go(rescreenBackTarget.value)
+  setPrimaryPage(rescreenBackTarget.value)
+}
+function backFromReports() {
+  setPrimaryPage(reportsBackTarget.value)
+}
+function backFromQuestionnaires() {
+  setPrimaryPage(questionnairesBackTarget.value)
 }
 function backFromQuestionnaireForm() {
-  go(questionnairesBackTarget.value)
+  setPrimaryPage(questionnairesBackTarget.value)
 }
 function tabTo(target) {
   if (target === 'questionnaires') questionnairesBackTarget.value = 'questionnaires'
@@ -583,7 +603,7 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <section v-else-if="page === 'reports'" class="screen report-screen">
+        <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
             <div class="student-main-info"><div class="student-name-line"><h2>{{ currentStudent.name }}</h2><span>{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</span></div><p>{{ currentStudent.school }}｜{{ currentStudent.className }}</p></div>
             <div class="report-card-bottom"><div class="current-report-info"><span><em>体检日期：</em><b>{{ currentReport.date }}</b></span><span><em>筛查机构：</em><b>{{ currentReport.institution }}</b></span></div><div class="report-card-actions"><button class="switch-report-btn" type="button" @click="showReportSheet = true">切换报告 <b>›</b></button><button class="download-report-btn" type="button" @click="openDownloadSheet">下载报告 <b>↓</b></button></div></div>
@@ -657,7 +677,7 @@ onBeforeUnmount(() => {
 
         <section v-else-if="page === 'signup'" class="screen signup-screen"><div class="page-title"><button type="button" @click="go('home')"><el-icon><ArrowLeft /></el-icon></button><h2>体检报名</h2></div><article class="signup-plan-card"><div class="signup-card-head"><span class="pill normal">{{ planStatusLabel }}</span><strong>{{ examPlan.name }}</strong></div><div class="signup-info-grid"><span>学校：{{ examPlan.school }}</span><span>时间：{{ examPlan.date }}</span><span>地点：{{ examPlan.place }}</span><span>截止：{{ examPlan.deadline }}</span></div></article><article class="signup-section base-project-card"><div class="signup-section-title"><strong>基础筛查项目</strong></div><p>以下项目由学校统一安排，免费参加。</p><div class="base-project-list"><div v-for="group in baseScreeningGroups" :key="group.type" class="base-project-row"><strong>{{ group.type }}</strong><span>{{ group.items }}</span></div></div></article><article class="signup-section student-confirm-card"><div class="signup-section-title"><strong>学生信息确认</strong></div><label>学生姓名<input :value="currentStudent.name" readonly /></label><label>学校班级<input :value="currentStudent.school + ' ' + currentStudent.className" readonly /></label><label>联系电话<input value="13800001234" /></label><label>备注<textarea placeholder="可填写既往病史、特殊情况等"></textarea></label></article><article class="signup-section paid-project-section"><div class="signup-section-title"><strong>自费项目</strong><button type="button" @click="paidProjectsExpanded = !paidProjectsExpanded">{{ paidProjectsExpanded ? '收起' : '展开' }}</button></div><p>自费项目关联本次体检计划，支付成功后随本次体检一同安排。</p><p v-if="paidProjectsExpanded" class="paid-deadline">可在 {{ examPlan.deadline }} 前选择或调整，超过后不支持新增或重选。</p><p v-else class="paid-collapsed-summary">{{ selectedPaidProjects.length ? '已选 ' + selectedPaidProjects.length + ' 项，合计 ￥' + paidTotal : '暂未选择自费项目' }}</p><template v-if="paidProjectsExpanded"><div class="paid-category-tabs"><button v-for="tab in paidCategoryTabs" :key="tab.key" type="button" :class="{ active: activePaidCategory === tab.key }" @click="activePaidCategory = tab.key">{{ tab.label }}</button></div><div class="paid-group-list"><section v-for="group in visiblePaidProjectGroups" :key="group.key" class="paid-group"><div class="paid-group-title"><strong>{{ group.name }}</strong><span>{{ group.projects.length }}项</span></div><button v-for="project in group.projects" :key="project.id" type="button" :class="['paid-project-row', { selected: selectedPaidProjectIds.includes(project.id), disabled: !canEditPaidProjects }]" @click="togglePaidProject(project.id)"><i>{{ selectedPaidProjectIds.includes(project.id) ? '✓' : '○' }}</i><span>{{ project.name }}</span><b>￥{{ project.price }}</b></button></section></div></template></article><article v-if="selectedPaidProjects.length || paidOrderStatus !== 'none'" class="signup-section order-summary-card"><div class="signup-section-title"><strong>自费订单</strong><span>{{ orderStatusLabel }}</span></div><p>关联体检计划：{{ examPlan.name }}</p><p>预计检查时间：{{ examPlan.date }}</p><div class="order-items"><span v-for="item in selectedPaidProjects" :key="item.id">{{ item.name }} ￥{{ item.price }}</span></div><strong>合计：￥{{ paidTotal }}</strong></article><div class="signup-bottom-bar"><div><span>已选 {{ selectedPaidProjects.length }} 项</span><strong>￥{{ paidTotal }}</strong></div><button v-if="!baseSignupDone" class="primary" type="button" @click="confirmBaseSignup">确认基础报名</button><button v-else-if="selectedPaidProjects.length && paidOrderStatus !== 'paid' && paidOrderStatus !== 'refunding'" class="primary" type="button" @click="openPayConfirm">提交自费订单并支付</button><button v-else-if="paidOrderStatus === 'paid'" class="ghost" type="button" @click="requestRefund">申请整单退款</button><button v-else-if="paidOrderStatus === 'refunding'" class="primary" type="button" @click="finishRefund">模拟退款成功</button><button v-else class="ghost" type="button" @click="scrollToPaidProjects">选择自费项目</button></div></section>
 
-        <section v-else-if="page === 'questionnaires'" class="screen questionnaires-screen"><h2>问卷量表</h2><article v-for="item in questionnaires" :key="item.name" class="list-card questionnaire-card"><div class="questionnaire-card-main"><strong>{{ item.name }}</strong><p>截止日期：{{ item.due }}</p></div><div class="questionnaire-card-actions"><span :class="['questionnaire-status', questionnaireStatusClass(item.status)]">{{ item.status }}</span><button type="button" @click="go('questionnaireForm')">{{ questionnaireActionLabel(item.status) }}</button></div></article></section>
+        <section v-else-if="page === 'questionnaires'" class="screen questionnaires-screen"><div class="page-title route-return-title"><button v-if="questionnairesBackTarget === 'home'" type="button" @click="backFromQuestionnaires"><el-icon><ArrowLeft /></el-icon></button><h2>问卷量表</h2></div><article v-for="item in questionnaires" :key="item.name" class="list-card questionnaire-card"><div class="questionnaire-card-main"><strong>{{ item.name }}</strong><p>截止日期：{{ item.due }}</p></div><div class="questionnaire-card-actions"><span :class="['questionnaire-status', questionnaireStatusClass(item.status)]">{{ item.status }}</span><button type="button" @click="go('questionnaireForm')">{{ questionnaireActionLabel(item.status) }}</button></div></article></section>
 
         <section v-else-if="page === 'questionnaireForm'" class="screen question-screen"><div class="page-title"><button type="button" @click="backFromQuestionnaireForm"><el-icon><ArrowLeft /></el-icon></button><h2>生活习惯问卷</h2></div><template v-if="!submittedQuestionnaire"><div class="progress"><span :style="{ width: progress + '%' }"></span></div><article class="question-card"><small>{{ questionnaireIndex + 1 }} / {{ questions.length }}</small><h2>{{ currentQuestion.title }}</h2><label v-for="option in currentQuestion.options" :key="option" :class="['option', { selected: questionnaireAnswers[questionnaireIndex] === option }]"><input v-model="questionnaireAnswers[questionnaireIndex]" type="radio" :name="'q-' + questionnaireIndex" :value="option" /><span>{{ option }}</span></label><textarea v-if="currentQuestion.type === 'text'" placeholder="请填写补充说明"></textarea></article><div class="fixed-actions"><button type="button" @click="questionnaireIndex = Math.max(0, questionnaireIndex - 1)">上一题</button><button class="primary" type="button" @click="questionnaireIndex === questions.length - 1 ? submitQuestionnaire() : questionnaireIndex++">{{ questionnaireIndex === questions.length - 1 ? '提交' : '下一题' }}</button></div></template><article v-else class="success-card"><strong>提交成功</strong><p>问卷已提交，医生将结合筛查结果综合评估。</p><button class="primary full" type="button" @click="go('home')">返回首页</button></article></section>
 
@@ -1314,4 +1334,7 @@ onBeforeUnmount(() => {
 .signup-bottom-bar{width:auto!important;max-width:none!important}
 .phone-shell:has(.signup-screen) .signup-screen::after{content:"";display:block;height:18px;flex:0 0 18px}
 
+
+/* route source return controls 2026-07-14 */
+.route-return-title{margin-bottom:2px!important}.route-return-title h2{font-size:20px!important;font-weight:800!important;color:#20343A!important}.route-return-title button{width:34px!important;height:34px!important;flex:none!important}
 </style>
