@@ -1559,5 +1559,16 @@ onBeforeUnmount(() => {
 .delete-student-sheet .danger,.bind-confirm-sheet .danger{height:42px;border:0;border-radius:14px;background:#D95757;color:#fff;font-weight:800}
 .delete-student-sheet .delete-warning{padding:9px 10px;border-radius:12px;background:#FFF7F7;color:#CF5C5C!important;font-size:13px!important;line-height:1.45!important}
 @media(max-width:360px){.student-manage-card{grid-template-columns:1fr!important}.student-actions{width:100%!important;flex-direction:row!important;justify-content:flex-end!important;flex-wrap:wrap!important}.student-actions button,.student-actions span{min-width:62px!important}}
+/* bottom tab optimization 2026-07-15 */
+.bottom-tabs{height:66px!important;padding:6px 8px calc(6px + env(safe-area-inset-bottom))!important;box-sizing:content-box!important;display:flex!important;align-items:center!important;justify-content:space-around!important;background:rgba(255,255,255,.98)!important;border-top:1px solid rgba(216,238,234,.9)!important}
+.bottom-tabs button{position:relative!important;flex:1 1 25%!important;min-width:0!important;height:54px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#8FA5AD!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:4px!important;box-shadow:none!important;font-size:11px!important;font-weight:600!important;line-height:1!important;overflow:visible!important}
+.bottom-tabs button::before{content:"";position:absolute;left:50%;top:50%;width:68px;height:50px;border-radius:18px;background:transparent;transform:translate(-50%,-50%);z-index:0;pointer-events:none}
+.bottom-tabs button.active{color:#13B8B2!important;background:transparent!important}
+.bottom-tabs button.active::before{background:rgba(35,196,188,.12)!important}
+.bottom-tabs .el-icon,.bottom-tabs span{position:relative;z-index:1;color:currentColor!important}
+.bottom-tabs .el-icon{font-size:21px!important;line-height:1!important}
+.bottom-tabs span{font-size:11px!important;line-height:1!important;white-space:nowrap!important}
+.phone-content{height:calc(100% - 120px)!important;padding-bottom:calc(30px + env(safe-area-inset-bottom))!important}
+@media (hover:none) and (pointer:coarse), (max-width:768px){.phone-content{height:calc(100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important}.bottom-tabs{height:66px!important}}
+@media(max-width:360px){.bottom-tabs button::before{width:64px!important;height:50px!important}}
 </style>
-
