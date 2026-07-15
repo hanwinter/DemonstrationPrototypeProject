@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -54,7 +54,12 @@ const bannerImages = [
 ]
 
 const loginForm = reactive({ phone: '13800001234', code: '' })
-const bindForm = reactive({ name: '', code: '', school: '第一实验小学', className: '', phone: '13800001234' })
+const bindForm = reactive({ name: '', code: '', cardNo: '', school: '第一实验小学', className: '', phone: '13800001234' })
+const bindErrors = reactive({ name: '', identity: '' })
+const pendingBindAction = ref('')
+const pendingBindMode = ref('')
+const pendingBindTarget = ref(null)
+const pendingDeleteStudentId = ref(null)
 const parentProfile = reactive({ name: '王女士', phone: '138****1234', relation: '母亲' })
 const parentProfileSaved = ref(false)
 const editingStudentId = ref(null)
@@ -74,6 +79,8 @@ const students = reactive([
   { id: 1, name: '林一凡', gender: '男', age: 10, school: '北京市某某小学', className: '五年级2班', default: true },
   { id: 2, name: '林小雨', gender: '女', age: 7, school: '第一实验小学', className: '一年级 1 班', default: false },
 ])
+const bindFormDirty = computed(() => [bindForm.name, bindForm.code, bindForm.cardNo, bindForm.school, bindForm.className, bindForm.phone].some((item) => String(item || '').trim()))
+const pendingDeleteStudent = computed(() => students.find((item) => item.id === pendingDeleteStudentId.value) || null)
 
 const reports = [
   { id: 1, batch: '2026 年春季五健筛查', date: '2026-04-12', result: '需关注', risk: '中风险', abnormal: 3, status: '已生成' },
@@ -445,7 +452,8 @@ function finishRefund() { paidOrderStatus.value = 'refunded'; selectedPaidProjec
 function scrollToPaidProjects() { showBaseSignupSuccess.value = false; showRefundSuccess.value = false; requestAnimationFrame(() => { const container = document.querySelector('.phone-content'); const target = document.querySelector('.paid-project-section'); if (container && target) container.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: 'smooth' }) }) }
 function questionnaireStatusClass(status) { if (status === '已提交') return 'done'; if (status === '填写中') return 'progressing'; if (status === '已过期') return 'expired'; return 'todo' }
 function questionnaireActionLabel(status) { if (status === '已提交') return '查看结果'; if (status === '填写中') return '继续填写'; return '立即填写' }
-function editStudent(id) { editingStudentId.value = id; page.value = 'studentEdit' }
+function editStudent(id) { if (requestBindLeave('edit', id)) return; performEditStudent(id) }
+function performEditStudent(id) { editingStudentId.value = id; page.value = 'studentEdit' }
 function saveParentProfile() { parentProfileSaved.value = true }
 function sendCode() {
   codeSent.value = true
@@ -470,11 +478,68 @@ function setPrimaryPage(target) {
   page.value = target
   if (['home', 'reports', 'questionnaires', 'mine'].includes(target)) activeTab.value = target
 }
-function go(target) {
+function requestBindLeave(mode, target = null) {
+  if (page.value === 'students' && showBindForm.value && bindFormDirty.value) {
+    pendingBindAction.value = 'leave'
+    pendingBindMode.value = mode
+    pendingBindTarget.value = target
+    return true
+  }
+  if (page.value === 'students' && showBindForm.value) {
+    showBindForm.value = false
+    resetBindForm()
+  }
+  return false
+}
+function requestCancelBind() {
+  if (bindFormDirty.value) {
+    pendingBindAction.value = 'cancel'
+    pendingBindMode.value = ''
+    pendingBindTarget.value = null
+    return
+  }
+  showBindForm.value = false
+  resetBindForm()
+}
+function continueBindForm() {
+  pendingBindAction.value = ''
+  pendingBindMode.value = ''
+  pendingBindTarget.value = null
+}
+function discardBindForm() {
+  const mode = pendingBindMode.value
+  const target = pendingBindTarget.value
+  pendingBindAction.value = ''
+  pendingBindMode.value = ''
+  pendingBindTarget.value = null
+  showBindForm.value = false
+  resetBindForm()
+  if (mode === 'go') performGo(target)
+  else if (mode === 'tab') performTabTo(target)
+  else if (mode === 'backStudents') setPrimaryPage(studentsBackTarget.value)
+  else if (mode === 'edit') performEditStudent(target)
+}
+function openBindForm() {
+  if (!showBindForm.value) resetBindForm()
+  showBindForm.value = true
+}
+function openStudentsManager() {
+  studentsBackTarget.value = page.value === 'mine' || activeTab.value === 'mine' ? 'mine' : 'home'
+  pendingBindAction.value = ''
+  pendingBindMode.value = ''
+  pendingBindTarget.value = null
+  showBindForm.value = false
+  showChildSheet.value = false
+  resetBindForm()
+  page.value = 'students'
+}
+function performGo(target) {
   const sourcePage = page.value
   const sourceTab = activeTab.value
   if (target === 'students') {
     studentsBackTarget.value = sourcePage === 'mine' || sourceTab === 'mine' ? 'mine' : 'home'
+    showBindForm.value = false
+    resetBindForm()
   }
   if (target === 'rescreen') {
     rescreenBackTarget.value = sourcePage === 'reports' || sourceTab === 'reports' ? 'reports' : 'home'
@@ -496,7 +561,12 @@ function go(target) {
   }
   if (['home', 'mine'].includes(target)) activeTab.value = target
 }
+function go(target) {
+  if (requestBindLeave('go', target)) return
+  performGo(target)
+}
 function backFromStudents() {
+  if (requestBindLeave('backStudents')) return
   setPrimaryPage(studentsBackTarget.value)
 }
 function backFromRescreen() {
@@ -511,11 +581,15 @@ function backFromQuestionnaires() {
 function backFromQuestionnaireForm() {
   setPrimaryPage(questionnairesBackTarget.value)
 }
-function tabTo(target) {
+function performTabTo(target) {
   if (target === 'questionnaires') questionnairesBackTarget.value = 'questionnaires'
   if (target === 'reports') reportsBackTarget.value = 'reports'
   activeTab.value = target
   page.value = target
+}
+function tabTo(target) {
+  if (requestBindLeave('tab', target)) return
+  performTabTo(target)
 }
 function switchStudent(id) {
   selectedStudentId.value = id
@@ -524,10 +598,38 @@ function switchStudent(id) {
   resetReportView()
   showChildSheet.value = false
 }
+function resetBindForm() {
+  bindForm.name = ''
+  bindForm.code = ''
+  bindForm.cardNo = ''
+  bindForm.school = '第一实验小学'
+  bindForm.className = ''
+  bindForm.phone = '13800001234'
+  bindErrors.name = ''
+  bindErrors.identity = ''
+}
 function confirmBind() {
-  if (!bindForm.name) bindForm.name = '林子墨'
-  students.push({ id: Date.now(), name: bindForm.name, gender: '男', age: 8, school: bindForm.school, className: bindForm.className || '二年级 3 班', default: false })
+  bindErrors.name = bindForm.name.trim() ? '' : '请填写学生姓名'
+  bindErrors.identity = bindForm.code.trim() || bindForm.cardNo.trim() ? '' : '身份证号 / 学号和就诊卡号至少填写一项'
+  if (bindErrors.name || bindErrors.identity) return
+  students.push({ id: Date.now(), name: bindForm.name.trim(), gender: '男', age: 8, school: bindForm.school.trim() || '第一实验小学', className: bindForm.className.trim() || '二年级 3 班', default: students.length === 0 })
+  if (students.length === 1) selectedStudentId.value = students[0].id
   showBindForm.value = false
+  resetBindForm()
+}
+function requestDeleteStudent(id) { pendingDeleteStudentId.value = id }
+function cancelDeleteStudent() { pendingDeleteStudentId.value = null }
+function confirmDeleteStudent() {
+  const targetIndex = students.findIndex((item) => item.id === pendingDeleteStudentId.value)
+  if (targetIndex < 0) { pendingDeleteStudentId.value = null; return }
+  const target = students[targetIndex]
+  const wasSelected = selectedStudentId.value === target.id
+  students.splice(targetIndex, 1)
+  if (target.default && students.length) {
+    students.forEach((item, index) => { item.default = index === 0 })
+  }
+  if (wasSelected || target.default) selectedStudentId.value = students[0]?.id || null
+  pendingDeleteStudentId.value = null
 }
 function submitQuestionnaire() {
   submittedQuestionnaire.value = true
@@ -675,9 +777,9 @@ onBeforeUnmount(() => {
           </section>
         </section>
 
-        <section v-else-if="page === 'students'" class="screen students-screen"><div class="page-title"><button type="button" @click="backFromStudents"><el-icon><ArrowLeft /></el-icon></button><h2>就诊人管理</h2></div><article v-for="item in students" :key="item.id" class="student-card student-manage-card"><div><strong>{{ item.name }}</strong><span>{{ item.gender }} · {{ item.age }} 岁</span><p>{{ item.school }}｜{{ item.className }}</p></div><div class="student-actions"><button type="button" :class="{ active: item.default }" @click="switchStudent(item.id)">{{ item.default ? '默认学生' : '设为默认' }}</button><button type="button" @click="editStudent(item.id)">编辑</button></div></article><button class="primary full" type="button" @click="showBindForm = true">添加学生</button><article v-if="showBindForm" class="form-card"><input v-model="bindForm.name" placeholder="学生姓名" /><input v-model="bindForm.code" placeholder="身份证号 / 学号" /><input v-model="bindForm.school" placeholder="所属学校" /><input v-model="bindForm.className" placeholder="所属班级" /><input v-model="bindForm.phone" placeholder="家长手机号" /><input placeholder="绑定码" /><button class="primary full" type="button" @click="confirmBind">确认绑定</button></article></section>
+        <section v-else-if="page === 'students'" class="screen students-screen"><div class="page-title"><button type="button" @click="backFromStudents"><el-icon><ArrowLeft /></el-icon></button><h2>就诊人管理</h2></div><article v-for="item in students" :key="item.id" class="student-card student-manage-card"><div class="student-manage-info"><div class="student-card-title"><strong>{{ item.name }}</strong><span v-if="item.default">默认学生</span></div><p>{{ item.age }} 岁</p><p>{{ item.school }}｜{{ item.className }}</p></div><div class="student-actions"><button v-if="!item.default" type="button" class="student-action-default" @click="switchStudent(item.id)">设为默认</button><span v-else class="student-action-default current">默认学生</span><button type="button" @click="editStudent(item.id)">编辑</button><button type="button" class="danger" @click="requestDeleteStudent(item.id)">删除</button></div></article><button :class="['primary full add-student-btn', { muted: showBindForm }]" type="button" @click="openBindForm">添加学生</button><article v-if="showBindForm" class="form-card bind-student-form"><header><div><strong>绑定学生信息</strong><p>请填写学生身份信息，确认后完成绑定</p></div><button type="button" @click="requestCancelBind">取消添加</button></header><label>学生姓名<input v-model="bindForm.name" /><small v-if="bindErrors.name" class="field-error">{{ bindErrors.name }}</small></label><label>身份证号 / 学号<input v-model="bindForm.code" /><small v-if="bindErrors.identity" class="field-error">{{ bindErrors.identity }}</small></label><label>就诊卡号<input v-model="bindForm.cardNo" /></label><label>所属学校<input v-model="bindForm.school" /></label><label>所属班级<input v-model="bindForm.className" /></label><label>家长手机号<input v-model="bindForm.phone" inputmode="tel" /></label><button class="primary full" type="button" @click="confirmBind">确认绑定学生</button></article></section>
 
-        <section v-else-if="page === 'studentEdit'" class="screen student-edit-screen"><div class="page-title"><button type="button" @click="go('students')"><el-icon><ArrowLeft /></el-icon></button><h2>编辑就诊人</h2></div><article class="form-card profile-form-card"><label>学生姓名<input v-model="editingStudent.name" /></label><label>学校<input v-model="editingStudent.school" /></label><label>班级<input v-model="editingStudent.className" /></label><label>年龄<input v-model="editingStudent.age" /></label><button class="primary full" type="button" @click="go('students')">保存</button></article></section>
+        <section v-else-if="page === 'studentEdit'" class="screen student-edit-screen"><div class="page-title"><button type="button" @click.stop.prevent="openStudentsManager()"><el-icon><ArrowLeft /></el-icon></button><h2>编辑就诊人</h2></div><article class="form-card profile-form-card"><label>学生姓名<input v-model="editingStudent.name" /></label><label>学校<input v-model="editingStudent.school" /></label><label>班级<input v-model="editingStudent.className" /></label><label>年龄<input v-model="editingStudent.age" /></label><button class="primary full" type="button" @click.stop.prevent="openStudentsManager()">保存</button></article></section>
 
         <section v-else-if="page === 'signup'" class="screen signup-screen"><div class="page-title"><button type="button" @click="go('home')"><el-icon><ArrowLeft /></el-icon></button><h2>体检报名</h2></div><article class="signup-plan-card signup-notice-card"><div class="signup-card-head"><span class="pill normal">{{ planStatusLabel }}</span><strong>{{ examPlan.name }}</strong></div><div class="signup-info-grid"><span><em>学校：</em><b>{{ examPlan.school }}</b></span><span><em>体检日期：</em><b>{{ examPlan.date }}</b></span><span><em>体检地点：</em><b>{{ examPlan.place }}</b></span><span><em>报名截止：</em><b>{{ examPlan.deadline }}</b></span></div></article><article class="signup-section base-project-card notice-project-card"><div class="signup-section-title"><strong>本次筛查项目</strong></div><p>以下项目由学校统一安排，免费参加。</p><div class="notice-project-list"><section v-for="group in baseScreeningTagGroups" :key="group.type" :class="['notice-project-group', group.type.includes('体格') ? 'physical' : group.type.includes('视力') ? 'vision' : group.type.includes('脊柱') ? 'spine' : group.type.includes('口腔') ? 'oral' : 'mental']"><h3><i></i>{{ group.type }}</h3><div class="notice-project-tags"><span v-for="item in group.tags" :key="item">{{ item }}</span></div></section></div></article><article class="signup-section student-confirm-card"><div class="signup-section-title"><strong>学生信息确认</strong></div><div class="student-confirm-list"><p><em>学生姓名</em><b>{{ currentStudent.name }}</b></p><p><em>学校班级</em><b>{{ currentStudent.school }}｜{{ currentStudent.className }}</b></p><p><em>联系电话</em><b>13800001234</b></p></div><label class="student-remark-field">备注<textarea placeholder="可填写既往病史、特殊情况等"></textarea></label></article><article class="signup-section paid-project-section"><div class="signup-section-title"><strong>自费项目</strong><button type="button" @click="paidProjectsExpanded = !paidProjectsExpanded">{{ paidProjectsExpanded ? '收起' : '展开' }}</button></div><p class="paid-inline-tip">自费项目随本次体检一同安排，可在 {{ examPlan.deadline }} 前选择或调整。</p><p v-if="!paidProjectsExpanded" class="paid-collapsed-summary">{{ selectedPaidProjects.length ? '已选 ' + selectedPaidProjects.length + ' 项，合计 ￥' + paidTotal : '暂未选择自费项目' }}</p><template v-if="paidProjectsExpanded"><div class="paid-category-tabs"><button v-for="tab in paidCategoryTabs" :key="tab.key" type="button" :class="{ active: activePaidCategory === tab.key }" @click="activePaidCategory = tab.key">{{ tab.label }}</button></div><div class="paid-group-list"><section v-for="group in visiblePaidProjectGroups" :key="group.key" class="paid-group"><div class="paid-group-title"><strong>{{ group.name }}</strong><span>{{ group.projects.length }}项</span></div><button v-for="project in group.projects" :key="project.id" type="button" :class="['paid-project-row', { selected: selectedPaidProjectIds.includes(project.id), disabled: !canEditPaidProjects }]" @click="togglePaidProject(project.id)"><i>{{ selectedPaidProjectIds.includes(project.id) ? '✓' : '' }}</i><span>{{ project.name }}</span><b>￥{{ project.price }}</b></button></section></div></template></article><article v-if="selectedPaidProjects.length || paidOrderStatus !== 'none'" class="signup-section order-summary-card"><div class="signup-section-title"><strong>自费订单</strong><span>{{ orderStatusLabel }}</span></div><p>体检日期：{{ examPlan.date }}</p><div class="order-items"><span v-for="item in selectedPaidProjects" :key="item.id">{{ item.name }} ￥{{ item.price }}</span></div><strong>合计：￥{{ paidTotal }}</strong></article><div class="signup-bottom-bar"><div><span>已选 {{ selectedPaidProjects.length }} 项</span><strong>￥{{ paidTotal }}</strong></div><button v-if="!baseSignupDone" class="primary" type="button" @click="confirmBaseSignup">确认基础报名</button><button v-else-if="selectedPaidProjects.length && paidOrderStatus !== 'paid' && paidOrderStatus !== 'refunding'" class="primary" type="button" @click="openPayConfirm">提交自费订单并支付</button><button v-else-if="paidOrderStatus === 'paid'" class="ghost" type="button" @click="requestRefund">申请整单退款</button><button v-else-if="paidOrderStatus === 'refunding'" class="primary" type="button" @click="finishRefund">模拟退款成功</button><button v-else class="ghost" type="button" @click="scrollToPaidProjects">选择自费项目</button></div></section>
 
@@ -699,10 +801,12 @@ onBeforeUnmount(() => {
 
         <section v-else-if="page === 'profile'" class="screen profile-screen"><div class="page-title"><button type="button" @click="go('mine')"><el-icon><ArrowLeft /></el-icon></button><h2>个人信息管理</h2></div><article class="form-card profile-form-card"><label>姓名<input v-model="parentProfile.name" /></label><label>手机号<input v-model="parentProfile.phone" /></label><label>与孩子关系<select v-model="parentProfile.relation"><option>母亲</option><option>父亲</option><option>祖父母</option><option>其他</option></select></label><label>当前绑定就诊人<input :value="currentStudent.name + '｜' + currentStudent.className" readonly /></label><button class="primary full" type="button" @click="saveParentProfile">保存</button><p v-if="parentProfileSaved" class="save-tip">保存成功</p></article></section>
 
-        <section v-else-if="page === 'mine'" class="screen mine-screen"><article class="mine-card mine-profile-card"><strong>{{ parentProfile.name }}</strong><p>手机号：{{ parentProfile.phone }}</p><p>当前就诊人：{{ currentStudent.name }}｜{{ currentStudent.className }}</p></article><button class="mine-row" type="button" @click="go('profile')">个人信息管理</button><button class="mine-row" type="button" @click="go('students')">就诊人管理</button><button class="mine-row" type="button" @click="go('messages')">消息通知</button><button class="logout" type="button" @click="logout">退出登录</button></section>
+        <section v-else-if="page === 'mine'" class="screen mine-screen"><article class="mine-card mine-profile-card"><strong>{{ parentProfile.name }}</strong><p>手机号：{{ parentProfile.phone }}</p><p>当前就诊人：{{ currentStudent.name }}｜{{ currentStudent.className }}</p></article><button class="mine-row" type="button" @click="go('profile')">个人信息管理</button><button class="mine-row" type="button" @click.stop.prevent="openStudentsManager()">就诊人管理</button><button class="mine-row" type="button" @click="go('messages')">消息通知</button><button class="logout" type="button" @click="logout">退出登录</button></section>
       </div>
 
 
+      <section v-if="pendingBindAction" class="child-sheet-mask" @click.self="continueBindForm"><article class="child-sheet result-sheet bind-confirm-sheet"><header><strong>{{ pendingBindAction === 'cancel' ? '放弃本次绑定？' : '当前绑定信息尚未提交' }}</strong><button type="button" @click="continueBindForm">×</button></header><p>{{ pendingBindAction === 'cancel' ? '已填写的信息将不会保存。' : '离开后将清空已填写内容，是否继续？' }}</p><button class="ghost full" type="button" @click="continueBindForm">继续填写</button><button class="danger full" type="button" @click="discardBindForm">{{ pendingBindAction === 'cancel' ? '放弃' : '离开' }}</button></article></section>
+      <section v-if="pendingDeleteStudent" class="child-sheet-mask" @click.self="cancelDeleteStudent"><article class="child-sheet result-sheet delete-student-sheet"><header><strong>确认删除该就诊人？</strong><button type="button" @click="cancelDeleteStudent">×</button></header><p>删除后将不再展示该学生的报告、问卷和复筛通知入口。</p><p v-if="pendingDeleteStudent.default" class="delete-warning">该学生为默认就诊人，删除后请重新设置默认就诊人。</p><button class="danger full" type="button" @click="confirmDeleteStudent">确认删除</button><button class="ghost full" type="button" @click="cancelDeleteStudent">取消</button></article></section>
       <section v-if="showBaseSignupSuccess" class="child-sheet-mask" @click.self="showBaseSignupSuccess = false"><article class="child-sheet result-sheet"><header><strong>基础报名成功</strong><button type="button" @click="showBaseSignupSuccess = false">×</button></header><p>已确认参加本次免费基础筛查，自费项目可在截止时间前继续选择。</p><button class="primary full" type="button" @click="scrollToPaidProjects">继续选择自费项目</button></article></section>
       <section v-if="showPayConfirm" class="child-sheet-mask" @click.self="showPayConfirm = false"><article class="child-sheet result-sheet"><header><strong>自费订单确认</strong><button type="button" @click="showPayConfirm = false">×</button></header><p>已选 {{ selectedPaidProjects.length }} 项，合计 ￥{{ paidTotal }}。</p><button class="primary full" type="button" @click="finishWechatPay">微信支付</button><button class="ghost full" type="button" @click="showPayConfirm = false">取消</button></article></section>
       <section v-if="showPaySuccess" class="child-sheet-mask" @click.self="showPaySuccess = false"><article class="child-sheet result-sheet"><header><strong>支付成功</strong><button type="button" @click="showPaySuccess = false">×</button></header><p>自费项目已支付，将随本次体检计划一同安排。</p><button class="primary full" type="button" @click="showPaySuccess = false">知道了</button></article></section>
@@ -766,7 +870,7 @@ onBeforeUnmount(() => {
         <article class="child-sheet">
           <header><strong>选择就诊人</strong><button type="button" @click="showChildSheet = false">×</button></header>
           <button v-for="item in students" :key="item.id" type="button" class="child-option" @click="switchStudent(item.id)"><span><b>{{ item.name }}｜{{ item.className }}</b><small>{{ item.id === selectedStudentId ? '当前' : '点击切换' }}</small></span><em v-if="item.id === selectedStudentId">当前</em></button>
-          <button class="add-child" type="button" @click="showChildSheet = false; go('students')">+ 添加就诊人</button>
+          <button class="add-child" type="button" @click.stop.prevent="openStudentsManager()">+ 添加就诊人</button>
         </article>
       </section>
       <nav v-if="isLoggedIn" class="bottom-tabs">
@@ -1424,6 +1528,36 @@ onBeforeUnmount(() => {
 .paid-project-section .paid-inline-tip{margin:6px 0 12px!important;padding:0!important;border:0!important;background:transparent!important;color:#60757C!important;font-size:13px!important;line-height:20px!important;font-weight:400!important;display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important}
 .paid-project-section .paid-deadline{display:none!important}
 .paid-project-section .paid-collapsed-summary{margin-top:6px!important;padding:0!important;border:0!important;background:transparent!important;color:#60757C!important;font-size:13px!important;line-height:20px!important}
-</style>
 
+/* student management page refinement 2026-07-15 */
+.phone-shell:has(.students-screen) .phone-content{padding-bottom:92px!important;scroll-padding-bottom:92px!important}
+.students-screen{gap:10px!important;padding-bottom:18px!important}
+.students-screen .page-title{margin-bottom:2px!important}
+.student-manage-card{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important;padding:12px 13px!important;border:1px solid rgba(216,238,234,.68)!important;border-radius:16px!important;background:#fff!important;box-shadow:0 8px 22px rgba(38,191,195,.07)!important}
+.student-manage-info{min-width:0!important;display:flex!important;flex-direction:column!important;gap:4px!important}
+.student-card-title{display:flex!important;align-items:center!important;gap:7px!important;min-width:0!important}
+.student-card-title strong{min-width:0!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.student-card-title span{flex:none;height:20px;padding:0 7px;border-radius:999px;background:#12A8AD;color:#fff;font-size:11px;font-weight:700;line-height:20px}
+.student-manage-info p{margin:0!important;color:#60757C!important;font-size:12px!important;line-height:1.35!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.student-actions{display:flex!important;flex-direction:column!important;align-items:flex-end!important;gap:6px!important;flex:none!important}
+.student-actions button,.student-actions span{height:28px!important;min-width:66px!important;padding:0 9px!important;border-radius:999px!important;border:1px solid rgba(216,238,234,.86)!important;background:#F8FEFC!important;color:#12A8AD!important;font-size:12px!important;font-weight:700!important;line-height:28px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
+.student-actions .current{border-color:#12A8AD!important;background:#12A8AD!important;color:#fff!important}
+.student-actions .danger{border-color:#F3D6D6!important;background:#FFF7F7!important;color:#CF5C5C!important}
+.add-student-btn{height:38px!important;border-radius:14px!important;font-size:14px!important;box-shadow:0 8px 18px rgba(18,168,173,.14)!important}
+.add-student-btn.muted{background:#E4F8F6!important;color:#12A8AD!important;box-shadow:none!important;border:1px solid rgba(216,238,234,.82)!important}
+.bind-student-form{gap:10px!important;margin-top:2px!important;padding:14px!important;border:1px solid rgba(216,238,234,.72)!important;border-radius:16px!important;background:#fff!important;box-shadow:0 8px 22px rgba(38,191,195,.07)!important}
+.bind-student-form header{display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:10px!important;margin-bottom:2px!important}
+.bind-student-form header div{min-width:0!important;display:flex!important;flex-direction:column!important;gap:4px!important}
+.bind-student-form header strong{color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.25!important}
+.bind-student-form header p{margin:0!important;color:#9AADB2!important;font-size:12px!important;line-height:1.4!important}
+.bind-student-form header button{flex:none;border:0!important;background:transparent!important;color:#9AADB2!important;font-size:12px!important;font-weight:600!important;padding:2px 0!important;height:auto!important;box-shadow:none!important}
+.bind-student-form label{gap:5px!important;color:#60757C!important;font-size:12px!important;font-weight:700!important}
+.bind-student-form input{height:38px!important;padding:0 10px!important;border-radius:11px!important;border:1px solid rgba(216,238,234,.95)!important;background:#FAFEFD!important;color:#20343A!important;font-size:13px!important;box-shadow:none!important}
+.bind-student-form input::placeholder{color:#A7B6BA!important}
+.bind-student-form .field-error{margin-top:-2px;color:#CF5C5C!important;font-size:11px!important;line-height:1.25!important}
+.bind-student-form .primary{height:40px!important;border-radius:13px!important;margin-top:2px!important}
+.delete-student-sheet .danger,.bind-confirm-sheet .danger{height:42px;border:0;border-radius:14px;background:#D95757;color:#fff;font-weight:800}
+.delete-student-sheet .delete-warning{padding:9px 10px;border-radius:12px;background:#FFF7F7;color:#CF5C5C!important;font-size:13px!important;line-height:1.45!important}
+@media(max-width:360px){.student-manage-card{grid-template-columns:1fr!important}.student-actions{width:100%!important;flex-direction:row!important;justify-content:flex-end!important;flex-wrap:wrap!important}.student-actions button,.student-actions span{min-width:62px!important}}
+</style>
 
