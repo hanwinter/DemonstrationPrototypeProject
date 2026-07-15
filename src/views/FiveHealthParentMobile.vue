@@ -597,7 +597,7 @@ onBeforeUnmount(() => {
             <p class="checkup-risk">存在 <b>3 项</b>需关注指标</p>
             <div class="summary-tags"><span class="high">视力异常</span><span class="medium">BMI 偏高</span><span class="low">脊柱轻度异常</span></div>
           </article>
-          <div class="section-head"><div><h3>健康知识</h3></div><button type="button" @click="selectedArticleId = articles[0].id; go('articleDetail')">更多</button></div>
+          <div class="section-head"><div><h3>健康知识</h3></div></div>
           <div class="edu-tabs"><button class="active" type="button">全部</button><button v-for="item in topics" :key="item.title" type="button">{{ item.title }}</button></div>
           <div class="home-article-list">
             <button v-for="item in articles.slice(0, 3)" :key="item.id" class="home-article" type="button" @click="selectedArticleId = item.id; go('articleDetail')">
@@ -1425,4 +1425,5 @@ onBeforeUnmount(() => {
 .paid-project-section .paid-deadline{display:none!important}
 .paid-project-section .paid-collapsed-summary{margin-top:6px!important;padding:0!important;border:0!important;background:transparent!important;color:#60757C!important;font-size:13px!important;line-height:20px!important}
 </style>
+
 
