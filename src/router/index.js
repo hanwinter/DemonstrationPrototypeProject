@@ -8,6 +8,7 @@ import ConsentManagement from '../views/ConsentManagement.vue'
 import ArchiveSupplementWorkbench from '../views/ArchiveSupplementWorkbench.vue'
 import FiveHealthProfile from '../views/FiveHealthProfile.vue'
 import FiveHealthParentMobile from '../views/FiveHealthParentMobile.vue'
+import FiveHealthZhixingParentH5 from '../views/FiveHealthZhixingParentH5.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -61,6 +62,11 @@ const router = createRouter({
       path: '/five-health/parent-mobile',
       name: 'five-health-parent-mobile',
       component: FiveHealthParentMobile,
+    },
+    {
+      path: '/five-health/zhixing-parent-h5',
+      name: 'five-health-zhixing-parent-h5',
+      component: FiveHealthZhixingParentH5,
     },
   ],
 })
