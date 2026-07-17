@@ -56,6 +56,7 @@ const projectSubmitMessage = ref('')
 const projectArchiveToast = ref('')
 const activeProjectQuestionnaireGroup = ref('')
 const projectQuestionnaireStatus = ref('editing')
+const consentConfirmed = ref(false)
 const projectProfileStatus = ref('saved')
 const activeReportDoc = ref(null)
 const lisArchiveExpanded = ref(true)
@@ -312,9 +313,6 @@ const specialProjects = ref([
   {
     id: 'vision', type: '视力', name: '视力健康管理专案', specialty: '儿童眼保健专科', doctor: '王医生', status: '管理中', consent: true, progress: 68, startDate: '2026-03-28', stage: '管理', currentStep: 3,
     flow: [
-      { title: '儿童建档', desc: '已完成基础档案与联系方式登记', state: 'completed', action: 'profile' },
-      { title: '首诊问卷', desc: '首次专科就诊信息已提交', state: 'completed', action: 'questionnaire' },
-      { title: '知情同意书', desc: '该视力专案已完成签署', state: 'completed', action: 'consent' },
       { title: '专科诊疗报告', desc: '儿童眼保健专科报告已生成', state: 'completed', action: 'report' },
       { title: '复诊计划', desc: '2026-04-18 09:30 待复诊', state: 'current', tip: '待复诊', action: 'followup' },
       { title: '家庭训练记录', desc: '本周视觉训练记录待提交', state: 'pending', tip: '待提交', action: 'training' },
@@ -349,9 +347,6 @@ const specialProjects = ref([
   {
     id: 'weight', type: '体重', name: '体重与营养管理专案', specialty: '儿童营养专科', doctor: '刘医生', status: '待签署', consent: false, progress: 12, startDate: '2026-04-08', stage: '授权', currentStep: 2,
     flow: [
-      { title: '儿童建档', desc: '已完成身高体重与基础信息登记', state: 'completed', action: 'profile' },
-      { title: '首诊问卷', desc: '饮食与运动情况已提交', state: 'completed', action: 'questionnaire' },
-      { title: '知情同意书', desc: '该体重营养专案待签署', state: 'current', tip: '待签署', action: 'consent' },
       { title: '营养评估报告', desc: '签署后开放查看', state: 'not_started' },
       { title: '随访问卷', desc: '签署后开放填写', state: 'not_started' },
       { title: '家庭饮食记录', desc: '签署后开放提交', state: 'not_started' },
@@ -600,10 +595,18 @@ function signCurrentProject() {
   currentProject.value.status = '管理中'
   currentProject.value.progress = Math.max(currentProject.value.progress, 28)
   currentProject.value.flow = currentProject.value.flow.map((item) => {
-    if (item.action === 'consent') return { ...item, state: 'completed', tip: '' }
     if (item.state === 'not_started' && ['营养评估报告', '随访问卷', '家庭饮食记录'].includes(item.title)) return { ...item, state: item.title === '营养评估报告' ? 'current' : 'pending', tip: item.title === '营养评估报告' ? '待生成' : '待处理', action: item.title === '营养评估报告' ? 'report' : item.title === '随访问卷' ? 'questionnaire' : 'training' }
     return item
   })
+}
+function confirmProjectConsent() {
+  if (currentProject.value.consent) {
+    backToProjectFlow()
+    return
+  }
+  if (!consentConfirmed.value) return
+  signCurrentProject()
+  projectSubmitMessage.value = '知情同意书已签署'
 }
 function canOpenFlowNode(item) {
   return Boolean(item?.action && item.state !== 'not_started')
@@ -618,6 +621,14 @@ function openFlowNode(item) {
   projectSubmitMessage.value = ''
   page.value = 'projectSubPage'
   activeTab.value = 'project'
+}
+function openProjectPrepPage(target) {
+  activeProjectSubPage.value = target
+  activeTab.value = 'project'
+  page.value = 'projectSubPage'
+  projectSubmitMessage.value = ''
+  projectArchiveToast.value = ''
+  if (target === 'consent') consentConfirmed.value = currentProject.value.consent
 }
 function backToProjectFlow() {
   projectSubmitMessage.value = ''
@@ -659,8 +670,7 @@ function submitProjectSubPage() {
     else backToProjectFlow()
     return
   }
-  if (activeProjectSubPage.value === 'consent' && !currentProject.value.consent) signCurrentProject()
-  projectSubmitMessage.value = ({ profile: '建档信息已保存', questionnaire: '首诊问卷已提交', consent: currentProject.value.consent ? '知情同意书已确认' : '知情同意书已签署', followup: '复诊计划已确认', training: '训练记录已提交' }[activeProjectSubPage.value] || '已提交')
+  projectSubmitMessage.value = ({ profile: '建档信息已保存', questionnaire: '首诊问卷已提交', followup: '复诊计划已确认', training: '训练记录已提交' }[activeProjectSubPage.value] || '已提交')
 }
 function openBaselineQuestionnaire() {
   activeProjectSubPage.value = 'questionnaire'
@@ -966,6 +976,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-else-if="page === 'project'" class="screen project-screen">
+          <section class="project-prep-card" aria-label="通用准备事项"><button type="button" @click="openProjectPrepPage('profile')"><strong>儿童建档</strong><span :class="['prep-status', projectProfileStatus]">{{ projectProfileStatusText }}</span></button><button type="button" @click="openProjectPrepPage('questionnaire')"><strong>首诊问卷</strong><span :class="['prep-status', projectQuestionnaireStatus]">{{ projectQuestionnaireStatusText }}</span></button><button type="button" @click="openProjectPrepPage('consent')"><strong>知情同意书</strong><span :class="['prep-status', currentProject.consent ? 'submitted' : 'pending']">{{ currentProject.consent ? '已签署' : '待签署' }}</span></button></section>
           <article class="project-child-card">
             <strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong>
             <button class="project-sheet-entry" type="button" @click="showProjectSheet = true">已参与 {{ specialProjects.length }} 个专案 <b>›</b></button>
@@ -982,7 +993,7 @@ onBeforeUnmount(() => {
           <article v-if="!currentProject.consent" class="project-lock-tip">
             <strong>该专案尚未签署知情同意书</strong>
             <p>签署后可查看该专案报告、健康指导和家庭服务。</p>
-            <button type="button" @click="signCurrentProject">去签署知情同意书</button>
+            <button type="button" @click="openProjectPrepPage('consent')">去签署知情同意书</button>
           </article>
 
           <div class="project-tabs">
@@ -996,7 +1007,7 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else-if="activeProjectPanel === 'report'">
-            <article v-if="!currentProject.consent" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="signCurrentProject">去签署</button></article>
+            <article v-if="!currentProject.consent" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
             <template v-else>
               <section class="archive-section archive-collapsible">
                 <div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div>
@@ -1011,7 +1022,7 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else>
-            <article v-if="!currentProject.consent" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看医生指导、随访问卷和家庭训练记录。</p><button type="button" @click="signCurrentProject">去签署</button></article>
+            <article v-if="!currentProject.consent" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看医生指导、随访问卷和家庭训练记录。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
             <template v-else><article v-for="item in currentProject.services" :key="item.title" class="service-row project-service-row"><b>{{ item.icon }}</b><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span>进入</span></article><article class="message-card project-message-card"><strong>在线互动</strong><p v-for="item in projectMessages" :key="item.text"><b>{{ item.from }}：</b>{{ item.text }}</p></article></template>
           </template>
         </section>
@@ -1045,7 +1056,7 @@ onBeforeUnmount(() => {
             <section class="sub-section consent-name"><strong>{{ currentProject.name }}知情同意书</strong><span :class="['consent-state', currentProject.consent ? 'done' : 'pending']">{{ currentProject.consent ? '已签署' : '待签署' }}</span></section>
             <section v-if="currentProject.consent" class="sub-section signed-info"><p><em>签署时间</em><b>2026-04-02 10:18</b></p><p><em>签署人</em><b>{{ parentProfile.name }}</b></p></section>
             <section class="sub-section consent-content"><h3>服务内容</h3><p>本专案将围绕儿童视力健康筛查、专科评估、随访管理和家庭干预进行连续健康管理。</p><h3>数据使用说明</h3><p>筛查和随访数据仅用于本次健康管理、医生评估和家长端报告展示。</p><h3>家长确认事项</h3><p>家长确认已了解服务边界，并配合完成问卷、复诊和家庭训练记录。</p><h3>风险与注意事项</h3><p>如儿童出现视力快速下降、眼痛等情况，应及时到医疗机构进一步检查。</p></section>
-            <label class="consent-check"><input type="checkbox" checked />我已阅读并理解以上内容</label>
+            <label v-if="!currentProject.consent" class="consent-check"><input v-model="consentConfirmed" type="checkbox" />我已阅读并理解以上内容</label>
           </template>
 
           <template v-else-if="activeProjectSubPage === 'followup'">
@@ -1062,7 +1073,7 @@ onBeforeUnmount(() => {
           </template>
 
           <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
-          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'consent' ? (currentProject.consent ? '查看知情同意书' : '确认签署') : activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
+          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!currentProject.consent && !consentConfirmed" @click="confirmProjectConsent">{{ currentProject.consent ? '返回专案流程' : '确认签署' }}</button></div><div v-else class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -1962,6 +1973,13 @@ onBeforeUnmount(() => {
 /* project report archive collapsible groups */
 .project-screen .archive-collapsible{padding:14px!important;gap:0!important}.project-screen .archive-collapsible .archive-head{min-height:30px!important;margin:0!important;padding:0 0 8px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center!important;gap:8px!important;border-bottom:0!important}.project-screen .archive-collapsible .archive-head strong{min-width:0;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.project-screen .archive-collapsible .archive-head span{color:#9AADB2!important;font-size:12px!important;font-weight:500!important;white-space:nowrap!important}.project-screen .archive-collapsible .archive-head button{height:28px!important;padding:0 10px!important;border:1px solid rgba(216,238,234,.85)!important;border-radius:999px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:12px!important;font-weight:700!important;box-shadow:none!important;white-space:nowrap!important}.project-screen .archive-collapsible .archive-card.compact{border-top:1px solid rgba(216,238,234,.62)!important}.project-screen .archive-collapsible .archive-head + .archive-card.compact,.project-screen .archive-collapsible .archive-head + template + .archive-card.compact{border-top:0!important}.project-screen .project-report-card{display:none!important}
 .project-screen .project-child-card{min-height:54px!important;padding:12px 14px!important}
+.project-prep-card{height:68px!important;padding:8px!important;border:0!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.045)!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+.project-prep-card button{min-width:0!important;height:52px!important;padding:6px 4px!important;border:0!important;border-radius:8px!important;background:#FAFEFD!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:5px!important;text-align:center!important;box-shadow:none!important}
+.project-prep-card button:active{background:#F0FCFA!important}
+.project-prep-card strong{max-width:100%!important;color:#20343A!important;font-size:13px!important;font-weight:800!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.prep-status{max-width:100%!important;height:18px!important;padding:0 6px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:10px!important;font-weight:800!important;line-height:18px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.prep-status.submitted{background:#E8F8F1!important;color:#18B884!important}.prep-status.saved{background:#E4F8F6!important;color:#12A8AD!important}.prep-status.editing,.prep-status.pending{background:#FFF4E8!important;color:#F2994A!important}
+@media(max-width:390px){.project-prep-card{height:66px!important;padding:7px!important;gap:5px!important}.project-prep-card button{height:52px!important;padding:6px 3px!important}.project-prep-card strong{font-size:12px!important}.prep-status{padding:0 5px!important;font-size:10px!important}}
 .project-sheet-entry{flex:none;border:0!important;background:transparent!important;color:var(--primary-dark,#12A8AD)!important;padding:0!important;font-size:13px!important;font-weight:800!important;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;box-shadow:none!important}
 .project-sheet-entry b{font-size:18px;line-height:1;font-weight:800;color:inherit}
 .project-screen .project-switcher{display:none!important}
@@ -2036,6 +2054,15 @@ onBeforeUnmount(() => {
 .consent-state.done{background:#E8F8F1!important;color:#18B884!important}
 .consent-content{max-height:300px!important;overflow:auto!important;-webkit-overflow-scrolling:touch!important}
 .consent-content p{margin:0 0 4px!important;color:#60757C!important;font-size:13px!important;line-height:1.65!important}
+.project-subpage-screen:has(.consent-name){gap:5px!important}
+.project-subpage-screen:has(.consent-name) .project-sub-summary,.project-subpage-screen:has(.consent-name) .sub-section,.project-subpage-screen:has(.consent-name) .consent-check,.project-subpage-screen:has(.consent-name) .project-submit-tip{margin:0!important}
+.project-subpage-screen:has(.consent-name) .project-sub-bottom .primary:disabled{background:#DDE8E6!important;color:#8FA5AD!important;box-shadow:none!important;cursor:not-allowed!important}
+.project-subpage-screen:has(.consent-name) .phone-content{padding-bottom:118px!important}
+.consent-content{scrollbar-width:thin!important;scrollbar-color:rgba(120,160,160,.35) transparent!important}
+.consent-content::-webkit-scrollbar{width:4px!important}
+.consent-content::-webkit-scrollbar-track{background:transparent!important}
+.consent-content::-webkit-scrollbar-thumb{background:rgba(120,160,160,.28)!important;border-radius:999px!important}
+.consent-content::-webkit-scrollbar-thumb:hover{background:rgba(120,160,160,.42)!important}
 .consent-check{display:flex!important;align-items:center!important;gap:8px!important;padding:0 2px!important;color:#60757C!important;font-size:13px!important}
 .consent-check input{width:16px!important;height:16px!important;padding:0!important;accent-color:#12A8AD!important}
 .sub-note-list{margin:0!important;padding-left:18px!important;color:#60757C!important;font-size:13px!important;line-height:1.7!important}
@@ -2124,6 +2151,14 @@ onBeforeUnmount(() => {
 .sub-link-list.compact button{min-height:50px!important;box-shadow:none!important;background:#FAFEFD!important}
 @media(max-width:390px){.guardian-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}.guardian-grid input{font-size:12px!important}.project-summary-line{gap:8px!important}.project-summary-line .profile-state-tag,.project-summary-line .questionnaire-state-tag{padding:0 7px!important}.guardian-grid .emergency-phone{grid-column:1/-1!important}}
 </style>
+
+
+
+
+
+
+
+
 
 
 
