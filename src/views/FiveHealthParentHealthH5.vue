@@ -62,6 +62,7 @@ const projectProfileStatus = ref('saved')
 const activeReportDoc = ref(null)
 const lisArchiveExpanded = ref(true)
 const pacsArchiveExpanded = ref(false)
+const specialtyReportExpanded = ref(['core', 'diagnosis', 'intervention', 'followup'])
 const reportZoom = ref(1)
 const reportImageX = ref(0)
 const reportImageY = ref(0)
@@ -331,10 +332,10 @@ const specialProjects = ref([
         { name: '眼底照相报告', date: '2026-04-09', part: '眼底', summary: '未见明显器质性异常，建议随访观察', image: pacsReportImage },
       ],
       trends: [
-        { name: '裸眼视力', value: '4.6 → 4.7', data: [42, 46, 44, 50] },
-        { name: '屈光度', value: '-1.25D → -1.10D', data: [72, 62, 58, 54] },
-        { name: '眼轴长度', value: '24.1mm → 24.0mm', data: [54, 58, 56, 55] },
-        { name: '远视储备', value: '+0.25D', data: [38, 40, 42, 43] },
+        { name: '裸眼视力', value: '4.6 → 4.7', change: '较上次 +0.1', tone: 'good', plot: '10,30 60,30 110,18', points: [{ date: '03-28', x: 10, y: 30 }, { date: '04-18', x: 60, y: 30 }, { date: '05-16', x: 110, y: 18 }] },
+        { name: '屈光度', value: '-1.25D → -1.10D', change: '较上次 -0.10D', tone: 'good', plot: '10,30 60,25 110,17', points: [{ date: '03-28', x: 10, y: 30 }, { date: '04-18', x: 60, y: 25 }, { date: '05-16', x: 110, y: 17 }] },
+        { name: '眼轴长度', value: '24.05mm → 24.10mm', change: '较上次 +0.02mm', tone: 'stable', plot: '10,28 60,24 110,21', points: [{ date: '03-28', x: 10, y: 28 }, { date: '04-18', x: 60, y: 24 }, { date: '05-16', x: 110, y: 21 }] },
+        { name: '远视储备', value: '+0.30D → +0.25D', change: '储备偏低', tone: 'warn', plot: '10,18 60,30 110,30', points: [{ date: '03-28', x: 10, y: 18 }, { date: '04-18', x: 60, y: 30 }, { date: '05-16', x: 110, y: 30 }] },
       ],
     },
     services: [
@@ -359,7 +360,7 @@ const specialProjects = ref([
 ])
 
 const currentProject = computed(() => specialProjects.value.find((item) => item.id === activeSpecialProjectId.value) || specialProjects.value[0])
-const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', followup: '复诊计划', training: '家庭训练计划' }[activeProjectSubPage.value] || '专案详情'))
+const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', specialtyReport: '专科诊疗报告', followup: '复诊计划', training: '家庭训练计划' }[activeProjectSubPage.value] || '专案详情'))
 const projectProfileStatusText = computed(() => ({ saved: '已保存未提交', editing: '编辑中', submitted: '已提交' }[projectProfileStatus.value] || '已保存未提交'))
 const projectQuestionnaireStatusText = computed(() => ({ editing: '填写中', saved: '已保存未提交', submitted: '已提交' }[projectQuestionnaireStatus.value] || '填写中'))
 const isProjectProfileEditing = computed(() => activeProjectSubPage.value === 'profile' && projectProfileStatus.value === 'editing')
@@ -548,6 +549,21 @@ function resetReportViewer() {
 function openReportDoc(item, type) {
   activeReportDoc.value = { ...item, type }
   resetReportViewer()
+}
+function viewSpecialtyReport() {
+  activeProjectSubPage.value = 'specialtyReport'
+  activeProjectPanel.value = 'report'
+  activeTab.value = 'project'
+  page.value = 'projectSubPage'
+  projectSubmitMessage.value = ''
+  projectArchiveToast.value = ''
+}
+function toggleSpecialtyReportGroup(key) {
+  specialtyReportExpanded.value = specialtyReportExpanded.value.includes(key) ? specialtyReportExpanded.value.filter((item) => item !== key) : [...specialtyReportExpanded.value, key]
+}
+function previewSpecialtyAttachment() {
+  projectArchiveToast.value = '附件预览暂未开放'
+  window.setTimeout(() => { projectArchiveToast.value = '' }, 1600)
 }
 function closeReportDoc() {
   activeReportDoc.value = null
@@ -1006,27 +1022,36 @@ onBeforeUnmount(() => {
 
 
           <div class="project-tabs">
-            <button :class="{ active: activeProjectPanel === 'flow' }" type="button" @click="activeProjectPanel = 'flow'">流程</button>
+            <button :class="{ active: activeProjectPanel === 'flow' }" type="button" @click="activeProjectPanel = 'flow'">专案进展</button>
             <button :class="{ active: activeProjectPanel === 'report' }" type="button" @click="activeProjectPanel = 'report'">报告</button>
             <button :class="{ active: activeProjectPanel === 'service' }" type="button" @click="activeProjectPanel = 'service'">家庭服务</button>
           </div>
 
           <template v-if="activeProjectPanel === 'flow'">
+              <div class="project-report-group-title"><i></i><strong>关键指标趋势</strong></div>
+              <section class="trend-grid project-trend-grid"><article v-for="item in currentProject.report.trends" :key="item.name" class="trend-card"><div class="trend-card-head"><strong>{{ item.name }}</strong><span>趋势</span></div><b>{{ item.value }}</b><small :class="['trend-change', item.tone]">{{ item.change }}</small><svg class="mini-trend-chart" viewBox="0 0 120 56" preserveAspectRatio="none"><line x1="8" y1="18" x2="112" y2="18" class="grid-line" /><line x1="8" y1="34" x2="112" y2="34" class="grid-line" /><polyline :points="item.plot" /><circle v-for="(point, index) in item.points" :key="point.date" :cx="point.x" :cy="point.y" :class="['trend-point', { latest: index === item.points.length - 1 }]" r="2.4" /><text v-for="point in item.points" :key="point.date + '-date'" :x="point.x" y="52">{{ point.date }}</text></svg></article></section>
+            <div class="project-report-group-title"><i></i><strong>专案任务</strong></div>
             <section class="flow-timeline"><button v-for="item in currentProject.flow" :key="item.title" :class="['flow-row', item.state, { clickable: canOpenFlowNode(item) }]" type="button" :disabled="!canOpenFlowNode(item)" @click="openFlowNode(item)"><i></i><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span v-if="item.tip" class="flow-tip">{{ item.tip }}</span><b v-if="canOpenFlowNode(item)">›</b></button></section>
           </template>
 
           <template v-else-if="activeProjectPanel === 'report'">
             <article v-if="!consentSigned" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
             <template v-else>
+              <article class="specialty-report-card">
+                <div class="specialty-report-head"><strong>专科诊疗报告</strong><span>已生成</span></div>
+                <div class="specialty-report-meta"><p><em>诊疗日期</em><b>{{ currentProject.report.time }}</b></p><p><em>风险等级</em><b class="risk">三级 轻度近视</b></p><p><em>建议复查</em><b>3个月后</b></p></div>
+                <button class="specialty-report-link" type="button" @click="viewSpecialtyReport">查看报告 &gt;</button>
+              </article>
+              <p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
+              <div class="project-report-group-title"><i></i><strong>原始检查单据归档</strong></div>
               <section class="archive-section archive-collapsible">
                 <div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div>
-                <template v-if="lisArchiveExpanded"><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'lis')">图文报告 &gt;</button></div><p>检查日期：{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></template>
+                <template v-if="lisArchiveExpanded"><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'lis')">查看</button></div><p>{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></template>
               </section>
               <section class="archive-section archive-collapsible">
                 <div class="archive-head signup-section-title"><strong>PACS 检查报告归档</strong><span>共 {{ currentProject.report.pacs.length }} 份</span><button type="button" @click="pacsArchiveExpanded = !pacsArchiveExpanded">{{ pacsArchiveExpanded ? '收起' : '展开' }}</button></div>
-                <template v-if="pacsArchiveExpanded"><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'pacs')">图文报告 &gt;</button></div><p>检查日期：{{ item.date }}</p><p>检查部位：{{ item.part }}</p><small>诊断摘要：{{ item.summary }}</small></div></article></template>
+                <template v-if="pacsArchiveExpanded"><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'pacs')">查看</button></div><p>{{ item.date }}</p><small>检查部位：{{ item.part }}｜{{ item.summary }}</small></div></article></template>
               </section>
-              <section class="trend-grid project-trend-grid"><article v-for="item in currentProject.report.trends" :key="item.name" class="trend-card"><div><strong>{{ item.name }}</strong><span>趋势</span></div><b>{{ item.value }}</b><svg viewBox="0 0 120 44" preserveAspectRatio="none"><polyline :points="item.data.map((v, i) => `${i * 40},${44 - v / 2}`).join(' ')" /></svg></article></section>
             </template>
           </template>
 
@@ -1062,6 +1087,17 @@ onBeforeUnmount(() => {
             <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'mental' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('mental')"><span>心理与情绪线索</span><em>{{ activeProjectQuestionnaireGroup === 'mental' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'mental'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>最近是否明显情绪低落或烦躁</h4><div class="sub-options"><span class="selected">无</span><span>偶尔</span><span>经常</span></div></article><article class="question-block"><h4>睡眠质量是否较差</h4><div class="sub-options"><span class="selected">无</span><span>偶尔</span><span>经常</span></div></article><article class="question-block"><h4>是否存在明显厌学、焦虑或人际交往困难</h4><div class="sub-options"><span class="selected">无</span><span>不确定</span><span>有</span></div></article><article class="question-block"><h4>是否有注意力不集中或多动冲动表现</h4><div class="sub-options"><span class="selected">无</span><span>偶尔</span><span>经常</span></div></article></div></section>
           </template>
 
+          <template v-else-if="activeProjectSubPage === 'specialtyReport'">
+            <article class="specialty-summary-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong><span>三级 轻度近视</span></div><p><em>诊疗日期</em><b>2026-04-02</b></p><p><em>就诊类型</em><b>校园初筛复查</b></p><p><em>诊断结果</em><b>低度近视、视疲劳</b></p><p><em>建议复查</em><b>3个月后</b></p></article>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('core')"><span><i></i>核心检测数据</span><em>{{ specialtyReportExpanded.includes('core') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('core')" class="specialty-section-body"><div class="specialty-eye-table"><div class="head"><span>项目</span><span>右眼 OD</span><span>左眼 OS</span></div><p><span>裸眼视力</span><b>4.6</b><b>4.7</b></p><p><span>矫正视力</span><b>5.0</b><b>5.0</b></p><p><span>电脑验光</span><b>S -0.75D / C -0.50D / A 180°</b><b>S -1.00D / C -0.25D / A 175°</b></p><p><span>主觉验光</span><b>-0.75D / -0.50D / 180°</b><b>-1.00D / -0.25D / 175°</b></p><p><span>眼轴 AL</span><b>24.10mm</b><b>24.00mm</b></p><p><span>角膜曲率 K1/K2</span><b>42.50D / 43.25D</b><b>42.75D / 43.50D</b></p><p><span>眼压</span><b>15mmHg</b><b>16mmHg</b></p></div><div class="specialty-note-grid"><p><em>视力表类型</em><b>5 分记录法</b></p><p><em>瞳距 PD</em><b>58mm</b></p><p><em>前房深度</em><b>3.12mm</b></p><p><em>晶状体厚度</em><b>3.55mm</b></p><p><em>眼轴评估</em><b>较同龄参考值略偏长</b></p><p><em>远视储备</em><b>+0.25D｜储备不足</b></p><p><em>眼压评估</em><b>正常</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('diagnosis')"><span><i></i>诊断结论与风险分级</span><em>{{ specialtyReportExpanded.includes('diagnosis') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('diagnosis')" class="specialty-section-body"><div class="specialty-tags"><span>低度近视</span><span>复性散光</span><span>视疲劳</span><span>三级 轻度近视</span></div><p class="specialty-paragraph">林一凡目前双眼裸眼视力下降，屈光检查提示低度近视并伴轻度散光，眼轴长度较同龄儿童略偏长，远视储备不足。结合用眼习惯和家庭风险因素，建议纳入视力健康专案重点随访，持续观察近视进展速度。</p></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('intervention')"><span><i></i>个性化干预方案</span><em>{{ specialtyReportExpanded.includes('intervention') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('intervention')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>光学矫正方案</em><b>建议验配框架眼镜，上课及看远时佩戴；暂不建议角膜塑形镜。</b></p><p><em>行为干预医嘱</em><b>每日户外活动不少于 2 小时；近距离用眼遵循 20-20-20 原则；控制手机和平板单次使用时长；保持良好读写光照和坐姿。</b></p><p><em>眼部功能训练</em><b>建议进行调节放松训练和远眺训练，每日 2-3 次。</b></p><p><em>药物干预</em><b>暂不使用低浓度阿托品，若 3 个月复查进展明显，再由医生评估。</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('followup')"><span><i></i>随访、复查与专案管理记录</span><em>{{ specialtyReportExpanded.includes('followup') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('followup')" class="specialty-section-body"><div class="specialty-note-grid"><p><em>建议复查周期</em><b>3 个月</b></p><p><em>下次复查必做项目</em><b>视力、验光、眼轴、眼压</b></p><p><em>转诊指征</em><b>若近视度数增长过快、出现斜视或眼底异常，应转诊上级眼科。</b></p><p><em>家长知情告知</em><b>近视不可逆，防控目标为延缓进展。</b></p><p><em>医师签名</em><b>王医生</b></p><p><em>报告出具日期</em><b>2026-04-02</b></p><p><em>五健专案联动标记</em><b>纳入重点管理</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('base')"><span><i></i>基础建档信息</span><em>{{ specialtyReportExpanded.includes('base') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('base')" class="specialty-section-body"><div class="specialty-note-grid"><p><em>儿童姓名</em><b>林一凡</b></p><p><em>性别</em><b>男</b></p><p><em>出生日期</em><b>2016-04-18</b></p><p><em>身份证号</em><b>110101201604180018</b></p><p><em>健康档案编号</em><b>FH-2026-0418-001</b></p><p><em>学籍 / 班级</em><b>XJ20260418001 / 五年级2班</b></p><p><em>监护人</em><b>王女士</b></p><p><em>联系电话</em><b>138****1234</b></p><p><em>居住地址</em><b>北京市海淀区某某小区3号楼</b></p><p><em>检查机构</em><b>儿童健康管理中心</b></p><p><em>接诊医师</em><b>王医生</b></p><p><em>检查设备编号</em><b>VIS-AXL-20260402</b></p><p><em>五健专案编号</em><b>VH-VISION-2026-0001</b></p><p><em>既往视力筛查历史</em><b>已调取</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('history')"><span><i></i>主诉、现病史、高危家族史</span><em>{{ specialtyReportExpanded.includes('history') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('history')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>主诉</em><b>近 2 个月上课看黑板不清，偶有眯眼和视疲劳。</b></p><p><em>现病史</em><b>首次发现视力异常约 3 个月前；既往未配镜；无散瞳验光史；无眼外伤史。</b></p><p><em>高危家族史</em><b>父亲中度近视，母亲高度近视约 650 度；无斜视、先天性眼病和遗传性眼底病家族史。</b></p><p><em>用眼生活习惯</em><b>每日户外约 1 小时，电子产品使用约 1-2 小时，读写距离偏近，偶有夜间开灯不足，坐姿偶有歪斜。</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('exam')"><span><i></i>眼部常规专科查体</span><em>{{ specialtyReportExpanded.includes('exam') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('exam')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>眼睑、结膜、角膜</em><b>未见明显充血、滤泡、倒睫或角膜损伤。</b></p><p><em>前房、瞳孔</em><b>前房深度正常，瞳孔对光反射灵敏。</b></p><p><em>晶状体</em><b>透明，未见先天混浊。</b></p><p><em>眼底初筛</em><b>视盘边界清，黄斑区未见明显异常。</b></p><p><em>眼位与眼球运动</em><b>遮盖试验未见显性斜视，眼球各方向运动未受限。</b></p><p><em>双眼视功能</em><b>立体视、同时视、融合功能初筛正常。</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('attachments')"><span><i></i>附件</span><em>{{ specialtyReportExpanded.includes('attachments') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('attachments')" class="specialty-section-body"><div class="specialty-attachment-list"><button type="button" @click="previewSpecialtyAttachment">验光单原始数据截图<span>预览</span></button><button type="button" @click="previewSpecialtyAttachment">眼轴生长对比曲线<span>预览</span></button><button type="button" @click="previewSpecialtyAttachment">视力健康宣教单二维码<span>预览</span></button></div></div></section>
+          </template>
           <template v-else-if="activeProjectSubPage === 'consent'">
             <section class="sub-section consent-name"><strong>专案知情同意书</strong><span :class="['consent-state', consentSigned ? 'done' : 'pending']">{{ consentSigned ? '已签署' : '待签署' }}</span></section>
             <section v-if="consentSigned" class="sub-section signed-info"><p><em>签署时间</em><b>2026-04-02 10:18</b></p><p><em>签署人</em><b>{{ parentProfile.name }}</b></p></section>
@@ -1070,20 +1106,20 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else-if="activeProjectSubPage === 'followup'">
-            <section class="sub-section followup-ticket"><div><small>复诊时间</small><strong>2026-04-18 09:30</strong></div><span>待复诊</span></section>
-            <section class="sub-section sub-info-list"><p><em>复诊地点</em><b>眼保健专科门诊</b></p><p><em>复诊科室</em><b>{{ currentProject.specialty }}</b></p><p><em>主治医生</em><b>{{ currentProject.doctor }}</b></p></section>
-            <section class="sub-section"><h3>复诊项目</h3><div class="sub-chip-list"><span>视力复查</span><span>屈光检查</span><span>眼轴复测</span><span>用眼行为评估</span></div></section>
-            <section class="sub-section"><h3>注意事项</h3><ol class="sub-note-list"><li>请携带既往检查报告。</li><li>如需散瞳检查，请按医生要求准备。</li><li>建议家长陪同到诊。</li></ol><button class="ghost full" type="button">联系机构</button></section>
+            <section class="sub-section followup-ticket followup-notice-time"><small>复诊时间</small><div><strong>2026-04-18 09:30</strong><span>待复诊</span></div></section>
+            <section class="sub-section sub-info-list followup-info-list"><p><em>复诊地点：</em><b>眼保健专科门诊</b></p><p><em>复诊科室：</em><b>{{ currentProject.specialty }}</b></p><p><em>主治医生：</em><b>{{ currentProject.doctor }}</b></p><p><em>联系电话：</em><b>138****1234</b></p></section>
+            <section class="sub-section followup-projects"><h3>复诊项目</h3><div class="sub-chip-list"><span>视力复查</span><span>屈光检查</span><span>眼轴复测</span><span>用眼行为评估</span></div></section>
+            <section class="sub-section followup-notes"><h3>注意事项</h3><ol class="sub-note-list"><li>请携带既往检查报告。</li><li>如需散瞳检查，请按医生要求准备。</li><li>建议家长陪同到诊。</li></ol></section>
           </template>
 
           <template v-else-if="activeProjectSubPage === 'training'">
-            <section class="sub-section training-overview"><div><small>周期</small><strong>2026-04-15 至 2026-04-21</strong></div><span>待提交</span></section>
-            <section class="sub-task-list"><article><b>户外活动</b><p>每日不少于 2 小时，优先选择自然光环境。</p><em>未完成</em></article><article><b>远眺训练</b><p>每日 3 次，每次 5 分钟。</p><em>未完成</em></article><article><b>用眼间隔</b><p>近距离用眼 30 分钟后休息 10 分钟。</p><em>已完成</em></article><article><b>眼保健操</b><p>每日 1 次，注意动作规范。</p><em>未完成</em></article></section>
-            <section class="sub-section"><h3>家长记录</h3><div class="sub-options"><span class="selected">今日已完成</span><span>今日未完成</span></div><textarea placeholder="填写训练备注"></textarea><button class="upload-placeholder" type="button">+ 上传图片</button></section>
+            <section class="sub-section training-overview training-notice-time"><small>训练周期</small><div><strong>2026-04-15 至 2026-04-21</strong><span>待提交</span></div></section>
+            <section class="sub-section training-task-card"><h3>本周训练任务</h3><div class="training-task-list"><article><div><b>户外活动</b><em class="pending">未完成</em></div><p>每日不少于 2 小时，优先选择自然光环境。</p></article><article><div><b>远眺训练</b><em class="pending">未完成</em></div><p>每日 3 次，每次 5 分钟。</p></article><article><div><b>用眼间隔</b><em class="done">已完成</em></div><p>近距离用眼 30 分钟后休息 10 分钟。</p></article><article><div><b>眼保健操</b><em class="pending">未完成</em></div><p>每日 1 次，注意动作规范。</p></article></div></section>
+            <section class="sub-section training-record-card"><h3>家长记录</h3><div class="sub-options"><span class="selected">今日已完成</span><span>今日未完成</span></div><textarea placeholder="填写训练备注"></textarea><button class="upload-placeholder" type="button">+ 上传图片</button></section>
           </template>
 
           <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
-          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!consentSigned && !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '返回专案流程' : '确认签署' }}</button></div><div v-else class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
+          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!consentSigned && !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '返回专案流程' : '确认签署' }}</button></div><div v-else-if="activeProjectSubPage === 'followup' || activeProjectSubPage === 'training'" class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -2160,79 +2196,22 @@ onBeforeUnmount(() => {
 .guardian-grid .emergency-phone{grid-column:auto!important}
 .sub-link-list.compact button{min-height:50px!important;box-shadow:none!important;background:#FAFEFD!important}
 @media(max-width:390px){.guardian-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}.guardian-grid input{font-size:12px!important}.project-summary-line{gap:8px!important}.project-summary-line .profile-state-tag,.project-summary-line .questionnaire-state-tag{padding:0 7px!important}.guardian-grid .emergency-phone{grid-column:1/-1!important}}
+/* project report tab hierarchy */
+.specialty-report-card{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:10px}.specialty-report-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-report-head strong{color:#20343A;font-size:16px;font-weight:800}.specialty-report-head span{padding:3px 8px;border-radius:999px;background:#E8F8F1;color:#18B884;font-size:12px;font-weight:800}.specialty-report-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.specialty-report-meta p{min-width:0;padding:8px;border-radius:8px;background:#F7FBFA}.specialty-report-meta em{display:block;color:#8A9CA1;font-size:11px;font-style:normal}.specialty-report-meta b{display:block;margin-top:4px;color:#20343A;font-size:12px;line-height:1.25}.specialty-report-meta .risk{color:#C76D12}.specialty-report-link{align-self:flex-end;border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0}.project-report-group-title{height:22px;display:flex;align-items:center;gap:7px;margin:2px 2px -2px;color:#20343A}.project-report-group-title i,.specialty-section-toggle i{width:3px;height:14px;border-radius:999px;background:#12A8AD}.project-report-group-title strong{font-size:14px;font-weight:800;line-height:1}.project-screen .archive-collapsible .archive-card.compact{min-height:56px!important;padding:10px 0!important;border-radius:0!important}.project-screen .archive-collapsible .archive-title strong{font-size:14px!important}.project-screen .archive-collapsible .archive-card.compact p{margin-top:4px!important}.project-screen .archive-collapsible .archive-card.compact small{font-size:12px!important;color:#60757C!important;font-weight:500!important}
+.specialty-summary-card,.specialty-detail-section{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.specialty-summary-card{display:grid;grid-template-columns:1fr 1fr;gap:8px}.specialty-summary-card>div{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-summary-card strong{color:#20343A;font-size:16px}.specialty-summary-card span,.specialty-tags span{padding:4px 8px;border-radius:999px;background:#FFF4E8;color:#C76D12;font-size:12px;font-weight:800}.specialty-summary-card p,.specialty-note-grid p{min-width:0;padding:8px;border-radius:8px;background:#F7FBFA}.specialty-summary-card em,.specialty-note-grid em,.specialty-plan-list em{display:block;color:#8A9CA1;font-size:11px;font-style:normal;line-height:1.35}.specialty-summary-card b,.specialty-note-grid b,.specialty-plan-list b{display:block;margin-top:4px;color:#20343A;font-size:13px;line-height:1.45}.specialty-detail-section{padding:0;overflow:hidden}.specialty-section-toggle{width:100%;min-height:42px;padding:0 14px;border:0;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-section-toggle span{display:flex;align-items:center;gap:7px;color:#20343A;font-size:15px;font-weight:800}.specialty-section-toggle em{font-style:normal;color:#12A8AD;font-size:12px;font-weight:800}.specialty-section-body{padding:0 14px 14px;border-top:1px solid rgba(216,238,234,.62)}.specialty-eye-table{margin-top:12px;border:1px solid rgba(216,238,234,.72);border-radius:8px;overflow:hidden}.specialty-eye-table .head,.specialty-eye-table p{display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1fr);gap:0}.specialty-eye-table .head{background:#F0FCFA;color:#60757C;font-size:12px;font-weight:800}.specialty-eye-table span,.specialty-eye-table b{padding:8px 7px;border-top:1px solid rgba(216,238,234,.62);font-size:12px;line-height:1.35;text-align:left}.specialty-eye-table .head span{border-top:0}.specialty-eye-table b{color:#20343A;font-weight:700}.specialty-note-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.specialty-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.specialty-paragraph{margin-top:10px;color:#20343A;font-size:13px;line-height:1.65}.specialty-plan-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}.specialty-plan-list p{padding:10px;border-radius:8px;background:#F7FBFA}.specialty-attachment-list{display:flex;flex-direction:column;margin-top:12px}.specialty-attachment-list button{height:42px;border:0;border-top:1px solid rgba(216,238,234,.62);background:#fff;display:flex;align-items:center;justify-content:space-between;color:#20343A;font-size:13px;font-weight:700}.specialty-attachment-list button:first-child{border-top:0}.specialty-attachment-list span{color:#12A8AD;font-size:12px;font-weight:800}
+@media(max-width:390px){.specialty-report-meta{grid-template-columns:1fr 1fr}.specialty-summary-card,.specialty-note-grid{grid-template-columns:1fr}.specialty-eye-table .head,.specialty-eye-table p{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr)}.specialty-eye-table span,.specialty-eye-table b{padding:7px 5px;font-size:11px}}
+/* specialty report detail polish */
+.project-subpage-screen:has(.specialty-summary-card) .project-sub-summary{display:none!important}.project-subpage-screen:has(.specialty-summary-card){gap:10px!important}.project-subpage-screen:has(.specialty-summary-card) .project-subpage-title{margin-bottom:2px!important}.specialty-summary-card{position:relative!important;padding:14px!important;border-radius:8px!important;background:#fff!important;border:0!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.specialty-summary-card>div span{background:#FFF4E8!important;color:#C76D12!important}.specialty-detail-section{border-radius:8px!important;background:#fff!important;border:0!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.specialty-section-toggle{border-radius:8px!important}.specialty-section-body{background:#fff!important}.specialty-eye-table{background:#fff!important}.specialty-eye-table p{margin:0!important}.specialty-note-grid p,.specialty-plan-list p{margin:0!important}.project-subpage-screen:has(.specialty-summary-card) .project-submit-tip{margin:0!important}.specialty-attachment-list button{padding:0!important}.specialty-report-card{border-radius:8px!important}.specialty-report-link{height:24px!important;line-height:24px!important}.specialty-report-meta p{margin:0!important}
+/* project mini trend charts */
+.project-trend-grid .trend-card{min-height:128px!important;padding:11px 10px!important;overflow:hidden!important}.trend-card-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important}.trend-card-head strong{min-width:0!important;color:#20343A!important;font-size:14px!important;line-height:1.25!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}.trend-card-head span{flex:none!important;color:#8A9CA1!important;font-size:11px!important;font-weight:700!important;background:transparent!important;padding:0!important}.project-trend-grid .trend-card>b{display:block!important;margin-top:7px!important;color:#20343A!important;font-size:14px!important;line-height:1.25!important;white-space:nowrap!important}.trend-change{display:block!important;margin-top:4px!important;font-size:11px!important;line-height:1.2!important;font-weight:700!important}.trend-change.good{color:#12A8AD!important}.trend-change.stable{color:#60757C!important}.trend-change.warn{color:#C76D12!important}.mini-trend-chart{width:100%!important;height:56px!important;margin-top:7px!important;display:block!important;overflow:visible!important}.mini-trend-chart .grid-line{stroke:#EEF5F4!important;stroke-width:1!important}.mini-trend-chart polyline{fill:none!important;stroke:#12A8AD!important;stroke-width:2!important;stroke-linecap:round!important;stroke-linejoin:round!important}.mini-trend-chart .trend-point{fill:#fff!important;stroke:#8EDFD9!important;stroke-width:1.6!important}.mini-trend-chart .trend-point.latest{fill:#12A8AD!important;stroke:#12A8AD!important;stroke-width:1.8!important}.mini-trend-chart text{fill:#8A9CA1!important;font-size:8px!important;text-anchor:middle!important;dominant-baseline:middle!important}
+@media(max-width:390px){.project-trend-grid .trend-card{padding:10px 9px!important}.project-trend-grid .trend-card>b{font-size:13px!important}.mini-trend-chart text{font-size:7.5px!important}}
+/* followup notice page refinement */
+.project-subpage-screen:has(.followup-notice-time) .project-sub-summary{padding:12px 14px!important}.followup-notice-time{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;padding:14px!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.followup-notice-time small{color:#8A9CA1!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important}.followup-notice-time div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.followup-notice-time strong{min-width:0!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.followup-notice-time span{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}.followup-info-list{padding:0 14px!important;border-radius:8px!important;overflow:hidden!important}.followup-info-list p{min-height:42px!important;margin:0!important;padding:11px 0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;border-top:1px solid rgba(216,238,234,.62)!important;line-height:1.45!important}.followup-info-list p:first-child{border-top:0!important}.followup-info-list em{flex:none!important;color:#8A9CA1!important;font-size:13px!important;font-style:normal!important;white-space:nowrap!important}.followup-info-list b{min-width:0!important;color:#20343A!important;font-size:14px!important;font-weight:700!important;text-align:left!important;overflow-wrap:anywhere!important}.followup-projects .sub-chip-list{display:flex!important;gap:8px!important;flex-wrap:wrap!important}.followup-projects .sub-chip-list span{border:0!important;border-radius:8px!important;background:#E8F8F6!important;color:#12A8AD!important;padding:6px 9px!important;font-size:12px!important;font-weight:800!important;box-shadow:none!important}.followup-notes .sub-note-list{margin-bottom:0!important}.followup-notes .ghost,.followup-notes button{display:none!important}
+@media(max-width:360px){.followup-notice-time div{align-items:flex-start!important;flex-direction:column!important}.followup-info-list p{align-items:flex-start!important}}
+/* training plan notice refinement */
+.project-subpage-screen:has(.training-notice-time){padding-bottom:92px!important}.training-notice-time{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;padding:14px!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.training-notice-time small{color:#8A9CA1!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important}.training-notice-time div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.training-notice-time strong{min-width:0!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.training-notice-time span{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}.training-task-card{padding:14px!important;border-radius:8px!important}.training-task-card h3,.training-record-card h3{margin:0 0 8px!important;color:#20343A!important;font-size:15px!important;font-weight:800!important}.training-task-list{display:flex!important;flex-direction:column!important}.training-task-list article{padding:10px 0!important;border-top:1px solid rgba(216,238,234,.62)!important;background:transparent!important;box-shadow:none!important;border-radius:0!important}.training-task-list article:first-child{border-top:0!important;padding-top:2px!important}.training-task-list article:last-child{padding-bottom:0!important}.training-task-list article>div{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important}.training-task-list b{color:#20343A!important;font-size:14px!important;line-height:1.35!important}.training-task-list em{height:20px!important;padding:0 7px!important;border:0!important;border-radius:999px!important;font-style:normal!important;font-size:11px!important;font-weight:800!important;line-height:20px!important}.training-task-list em.pending{background:#FFF4E8!important;color:#F2994A!important}.training-task-list em.done{background:#E8F8F1!important;color:#18B884!important}.training-task-list p{margin:5px 0 0!important;color:#60757C!important;font-size:13px!important;line-height:1.5!important}.training-record-card{padding:14px!important;border-radius:8px!important}.training-record-card .sub-options{margin-bottom:10px!important}.training-record-card .sub-options span{height:30px!important;padding:0 10px!important;border:0!important;border-radius:999px!important;background:#F3F7F6!important;color:#60757C!important;font-size:12px!important;font-weight:800!important;display:inline-flex!important;align-items:center!important}.training-record-card .sub-options .selected{background:#E8F8F6!important;color:#12A8AD!important}.training-record-card textarea{min-height:68px!important;border-radius:8px!important}.training-record-card .upload-placeholder{height:42px!important;margin-top:8px!important;border-radius:8px!important;background:#FAFEFD!important;color:#12A8AD!important;font-size:13px!important}
+@media(max-width:360px){.training-notice-time div{align-items:flex-start!important;flex-direction:column!important}.training-notice-time strong{font-size:15px!important}}
 </style>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
