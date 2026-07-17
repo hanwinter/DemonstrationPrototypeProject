@@ -53,6 +53,10 @@ const showProjectSheet = ref(false)
 const activeFlowNode = ref(null)
 const activeProjectSubPage = ref('profile')
 const projectSubmitMessage = ref('')
+const projectArchiveToast = ref('')
+const activeProjectQuestionnaireGroup = ref('')
+const projectQuestionnaireStatus = ref('editing')
+const projectProfileStatus = ref('saved')
 const activeReportDoc = ref(null)
 const lisArchiveExpanded = ref(true)
 const pacsArchiveExpanded = ref(false)
@@ -360,6 +364,9 @@ const specialProjects = ref([
 
 const currentProject = computed(() => specialProjects.value.find((item) => item.id === activeSpecialProjectId.value) || specialProjects.value[0])
 const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', followup: '复诊计划', training: '家庭训练计划' }[activeProjectSubPage.value] || '专案详情'))
+const projectProfileStatusText = computed(() => ({ saved: '已保存未提交', editing: '编辑中', submitted: '已提交' }[projectProfileStatus.value] || '已保存未提交'))
+const projectQuestionnaireStatusText = computed(() => ({ editing: '填写中', saved: '已保存未提交', submitted: '已提交' }[projectQuestionnaireStatus.value] || '填写中'))
+const isProjectProfileEditing = computed(() => activeProjectSubPage.value === 'profile' && projectProfileStatus.value === 'editing')
 const reportImageStyle = computed(() => ({ width: (reportZoom.value * 100) + '%', transform: 'translate3d(' + reportImageX.value + 'px, ' + reportImageY.value + 'px, 0)' }))
 const currentStudent = computed(() => students.find((item) => item.id === selectedStudentId.value) || students[0])
 const editingStudent = computed(() => students.find((item) => item.id === editingStudentId.value) || currentStudent.value)
@@ -464,7 +471,8 @@ function toggleAllVisibleResultGroups() {
     return
   }
   expandedResultGroups.value = Array.from(new Set([...expandedResultGroups.value, ...visibleCodes]))
-}function getLatestReportId() {
+}
+function getLatestReportId() {
   return reportCatalog[0]?.reportId || ''
 }
 function resetReportView() {
@@ -513,7 +521,8 @@ function generateReportDownload(type) {
 function retryDownload() {
   downloadStatus.value = 'idle'
   downloadMessage.value = ''
-}function getOverlayClass(item) {
+}
+function getOverlayClass(item) {
   if (item.code === activeHealthCode.value) return 'active'
   if (['高风险', '中风险', '低风险'].includes(item.status)) return 'visible'
   if (item.status === '待填写') return 'pending'
@@ -622,9 +631,72 @@ function flowActionLabel(item) {
   const map = { profile: '查看儿童档案', questionnaire: '查看问卷', consent: currentProject.value.consent ? '查看知情同意书' : '去签署知情同意书', followup: '查看复诊计划', training: '查看家庭训练记录' }
   return map[item?.action] || '查看详情'
 }
+function editProjectProfile() {
+  if (projectProfileStatus.value === 'submitted') return
+  projectSubmitMessage.value = ''
+  projectArchiveToast.value = ''
+  projectProfileStatus.value = 'editing'
+}
+function cancelProjectProfileEdit() {
+  projectSubmitMessage.value = ''
+  projectProfileStatus.value = 'saved'
+}
+function saveProjectProfileDraft() {
+  projectProfileStatus.value = 'saved'
+  projectSubmitMessage.value = '建档信息已保存'
+}
+function submitProjectProfile() {
+  projectProfileStatus.value = 'submitted'
+  projectSubmitMessage.value = '建档信息已提交'
+}
+function requestProjectProfileChange() {
+  projectSubmitMessage.value = '请联系机构申请修改'
+}
 function submitProjectSubPage() {
+  if (activeProjectSubPage.value === 'profile') {
+    if (projectProfileStatus.value === 'editing') saveProjectProfileDraft()
+    else if (projectProfileStatus.value === 'saved') submitProjectProfile()
+    else backToProjectFlow()
+    return
+  }
   if (activeProjectSubPage.value === 'consent' && !currentProject.value.consent) signCurrentProject()
   projectSubmitMessage.value = ({ profile: '建档信息已保存', questionnaire: '首诊问卷已提交', consent: currentProject.value.consent ? '知情同意书已确认' : '知情同意书已签署', followup: '复诊计划已确认', training: '训练记录已提交' }[activeProjectSubPage.value] || '已提交')
+}
+function openBaselineQuestionnaire() {
+  activeProjectSubPage.value = 'questionnaire'
+  projectSubmitMessage.value = ''
+  projectArchiveToast.value = ''
+}
+function showProjectArchiveToast() {
+  projectArchiveToast.value = '专项档案将在筛查完成后生成'
+  window.setTimeout(() => { projectArchiveToast.value = '' }, 1600)
+}
+function saveProjectQuestionnaireDraft() {
+  projectQuestionnaireStatus.value = 'saved'
+  projectSubmitMessage.value = '首诊问卷已保存'
+}
+function submitProjectQuestionnaire() {
+  projectQuestionnaireStatus.value = 'submitted'
+  projectSubmitMessage.value = '首诊问卷已提交'
+}
+function requestProjectQuestionnaireChange() {
+  projectSubmitMessage.value = '请联系机构申请修改'
+}
+function selectProjectQuestionOption(event) {
+  if (projectQuestionnaireStatus.value === 'submitted') return
+  const target = event.target
+  if (!(target instanceof HTMLElement) || target.tagName !== 'SPAN') return
+  const optionGroup = target.closest('.sub-options, .sub-check-list')
+  if (!optionGroup) return
+  if (optionGroup.classList.contains('sub-options')) {
+    optionGroup.querySelectorAll('span').forEach((item) => item.classList.remove('selected'))
+    target.classList.add('selected')
+    return
+  }
+  target.classList.toggle('selected')
+}
+function toggleProjectQuestionnaireGroup(group) {
+  activeProjectQuestionnaireGroup.value = activeProjectQuestionnaireGroup.value === group ? '' : group
 }
 function confirmFlowNodeAction() {
   if (activeFlowNode.value?.action === 'consent' && !currentProject.value.consent) {
@@ -947,22 +1019,26 @@ onBeforeUnmount(() => {
           <div class="page-title project-subpage-title"><button type="button" @click="backToProjectFlow"><el-icon><ArrowLeft /></el-icon></button><h2>{{ projectSubPageTitle }}</h2><span class="top-placeholder"></span></div>
           <article class="project-sub-summary">
             <strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong>
-            <p>{{ currentProject.name }}</p>
-            <small>当前阶段：{{ projectSubPageTitle }}</small>
+            <div class="project-summary-line"><p>{{ currentProject.name }}</p><span v-if="activeProjectSubPage === 'profile'" :class="['profile-state-tag', projectProfileStatus]">{{ projectProfileStatusText }}</span><span v-else-if="activeProjectSubPage === 'questionnaire'" :class="['questionnaire-state-tag', projectQuestionnaireStatus]">{{ projectQuestionnaireStatusText }}</span></div>
           </article>
 
           <template v-if="activeProjectSubPage === 'profile'">
-            <section class="sub-section"><h3>基本信息</h3><div class="sub-form-grid"><label>姓名<input :value="currentStudent.name" readonly /></label><label>性别<input :value="currentStudent.gender" readonly /></label><label>年龄<input :value="currentStudent.age + '岁'" readonly /></label><label>身份证号/学籍号<input value="110101201604180018" readonly /></label><label>学校<input :value="currentStudent.school" readonly /></label><label>班级<input :value="currentStudent.className" readonly /></label></div></section>
-            <section class="sub-section"><h3>监护人信息</h3><div class="sub-form-grid"><label>监护人姓名<input :value="parentProfile.name" readonly /></label><label>手机号<input :value="parentProfile.phone" readonly /></label><label>与儿童关系<input :value="parentProfile.relation" readonly /></label></div></section>
-            <section class="sub-section"><h3>健康基础信息</h3><div class="sub-info-list"><p><em>过敏史</em><b>暂无明确药物过敏史</b></p><p><em>既往病史</em><b>无重大既往病史</b></p><p><em>家族史</em><b>父母一方近视</b></p><p><em>当前用药</em><b>无长期用药</b></p></div></section>
-            <section class="sub-section"><h3>视力专案信息</h3><div class="sub-chip-list"><span>偶尔佩戴框架眼镜</span><span>近一年做过眼科检查</span><span>最近一次提示远视储备不足</span></div></section>
+            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>基础身份信息</h3><div class="sub-form-grid"><label class="required"><span class="field-label">儿童姓名</span><input :value="currentStudent.name" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">性别</span><input :value="currentStudent.gender" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">出生日期</span><input value="2016-04-18" :readonly="!isProjectProfileEditing" /></label><label>年龄<input :value="currentStudent.age + '岁'" readonly /></label><label class="required"><span class="field-label">身份证号</span><input value="110101201604180018" :readonly="!isProjectProfileEditing" /></label><label>档案编号<input value="FH-2026-0418-001" :readonly="!isProjectProfileEditing" /></label></div></section>
+            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>就读信息</h3><div class="sub-form-grid"><label class="required wide-field"><span class="field-label">就读机构</span><input value="北京市海淀区中关村第三小学万柳校区" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">年级</span><input value="四年级" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">班级</span><input :value="currentStudent.className" :readonly="!isProjectProfileEditing" /></label><label>学籍号<input value="XJ20260418001" :readonly="!isProjectProfileEditing" /></label></div></section>
+            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>监护人及联络信息</h3><div class="sub-form-grid guardian-grid"><label class="required"><span class="field-label">监护人</span><input :value="isProjectProfileEditing ? parentProfile.name : parentProfile.name + '｜' + parentProfile.relation" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">监护人电话</span><input :value="parentProfile.phone" :readonly="!isProjectProfileEditing" /></label><label v-if="isProjectProfileEditing" class="required"><span class="field-label">与儿童关系</span><input :value="parentProfile.relation" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">紧急联系人</span><input value="林先生" :readonly="!isProjectProfileEditing" /></label><label class="required emergency-phone"><span class="field-label">紧急联系电话</span><input value="139****5678" :readonly="!isProjectProfileEditing" /></label></div><label class="sub-text-field required"><span class="field-label">户籍地址</span><textarea :readonly="!isProjectProfileEditing">北京市海淀区某某街道 18 号</textarea></label><label class="sub-text-field required"><span class="field-label">现居住地址</span><textarea :readonly="!isProjectProfileEditing">北京市海淀区某某小区 3 号楼</textarea></label></section>
+            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>出生与成长基础信息</h3><div class="sub-form-grid"><label class="required"><span class="field-label">民族</span><input value="汉族" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">出生孕周</span><input value="39周" :readonly="!isProjectProfileEditing" /></label></div><div class="sub-field-title required">是否早产</div><div class="sub-options"><span class="selected">足月</span><span>早产</span></div><div class="sub-field-title required">分娩方式</div><div class="sub-options"><span class="selected">顺产</span><span>剖宫产</span></div></section>
+            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>既往健康与家族风险史</h3><div class="sub-field-title">既往病史</div><div class="sub-check-list health-history"><span>哮喘</span><span class="selected">过敏</span><span>矮小</span><span>肥胖</span><span class="selected">弱视</span><span>脊柱疾病</span><span>精神情绪相关病史</span><span class="none">无明显既往病史</span></div><div class="sub-field-title">家族高危史</div><div class="sub-check-list health-history"><span class="selected">父母近视</span><span>父母高度近视</span><span>家族肥胖</span><span>糖尿病</span><span>脊柱侧弯</span><span>心理疾病遗传史</span><span class="none">无明显家族高危史</span></div><label class="sub-text-field">手术史<textarea :readonly="!isProjectProfileEditing">无明确手术史</textarea></label><label class="sub-text-field">长期用药史<textarea :readonly="!isProjectProfileEditing">无长期用药</textarea></label><label class="sub-text-field">既往体检异常记录<textarea :readonly="!isProjectProfileEditing">曾提示远视储备不足，建议随访。</textarea></label><label class="sub-text-field">以往就诊 / 矫正记录<textarea :readonly="!isProjectProfileEditing">2025年曾进行眼科复查，未长期配镜。</textarea></label></section>
+
           </template>
 
           <template v-else-if="activeProjectSubPage === 'questionnaire'">
-            <section class="sub-section questionnaire-progress"><div><strong>问卷进度 3/12</strong><p>根据儿童用眼习惯、视力表现和家庭近视情况完成首诊评估。</p></div><span>25%</span></section>
-            <section class="sub-section question-block"><h3>孩子每日近距离用眼时长？</h3><div class="sub-options"><span>1小时以内</span><span class="selected">1-2小时</span><span>2小时以上</span></div></section>
-            <section class="sub-section question-block"><h3>每日户外活动时长？</h3><div class="sub-options"><span>少于1小时</span><span class="selected">1-2小时</span><span>2小时以上</span></div></section>
-            <section class="sub-section question-block"><h3>近期视力表现</h3><div class="sub-check-list"><span>经常眯眼看远处</span><span>偶尔揉眼或眼干</span><span>已做过验光检查</span><span>父母一方近视</span></div><textarea placeholder="可补充孩子近期用眼情况"></textarea></section>
+            <section class="sub-section questionnaire-progress"><div><strong>{{ projectQuestionnaireStatus === 'submitted' ? '已完成 18/18' : '问卷进度 3/18' }}</strong><i><span></span></i></div></section>
+            <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'vision' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('vision')"><span>用眼与视力行为</span><em>{{ activeProjectQuestionnaireGroup === 'vision' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'vision'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>每日近距离用眼时长</h4><div class="sub-options"><span>少于1小时</span><span class="selected">1-2小时</span><span>2-4小时</span><span>4小时以上</span></div></article><article class="question-block"><h4>每日电子产品使用时长</h4><div class="sub-options"><span>少于30分钟</span><span class="selected">30分钟-1小时</span><span>1-2小时</span><span>2小时以上</span></div></article><article class="question-block"><h4>是否经常眯眼看远处</h4><div class="sub-options"><span>从不</span><span class="selected">偶尔</span><span>经常</span></div></article><article class="question-block"><h4>是否频繁揉眼、眼干或眼疲劳</h4><div class="sub-options"><span>无</span><span class="selected">偶尔</span><span>经常</span></div></article><article class="question-block"><h4>是否已经佩戴眼镜</h4><div class="sub-options"><span class="selected">未佩戴</span><span>框架眼镜</span><span>角膜塑形镜</span></div></article><article class="question-block"><h4>初发近视时间</h4><div class="sub-options"><span class="selected">未近视</span><span>1年内</span><span>1-3年</span><span>3年以上</span></div></article></div></section>
+            <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'outdoor' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('outdoor')"><span>户外活动与运动</span><em>{{ activeProjectQuestionnaireGroup === 'outdoor' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'outdoor'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>每日户外活动时长</h4><div class="sub-options"><span>少于30分钟</span><span>30分钟-1小时</span><span class="selected">1-2小时</span><span>2小时以上</span></div></article><article class="question-block"><h4>每周运动频次</h4><div class="sub-options"><span>少于1次</span><span>1-2次</span><span class="selected">3-4次</span><span>5次及以上</span></div></article><article class="question-block"><h4>主要运动类型</h4><div class="sub-check-list"><span>跑跳类</span><span class="selected">球类</span><span>游泳</span><span>舞蹈体操</span><span>其他</span></div></article></div></section>
+            <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'diet' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('diet')"><span>饮食与睡眠</span><em>{{ activeProjectQuestionnaireGroup === 'diet' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'diet'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>三餐是否规律</h4><div class="sub-options"><span class="selected">规律</span><span>偶尔不规律</span><span>经常不规律</span></div></article><article class="question-block"><h4>甜食或含糖饮料摄入</h4><div class="sub-options"><span>很少</span><span class="selected">每周1-2次</span><span>每周3次以上</span><span>几乎每天</span></div></article><article class="question-block"><h4>每日睡眠时长</h4><div class="sub-options"><span>少于7小时</span><span>7-8小时</span><span class="selected">8-9小时</span><span>9小时以上</span></div></article><article class="question-block"><h4>作息是否规律</h4><div class="sub-options"><span class="selected">规律</span><span>偶尔晚睡</span><span>经常晚睡</span></div></article></div></section>
+            <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'oral' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('oral')"><span>口腔卫生习惯</span><em>{{ activeProjectQuestionnaireGroup === 'oral' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'oral'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>每日刷牙次数</h4><div class="sub-options"><span>0次</span><span>1次</span><span class="selected">2次</span><span>2次以上</span></div></article><article class="question-block"><h4>是否使用牙线</h4><div class="sub-options"><span class="selected">从不</span><span>偶尔</span><span>经常</span></div></article><article class="question-block"><h4>定期口腔检查频率</h4><div class="sub-options"><span>从不</span><span class="selected">每年1次</span><span>每半年1次</span><span>有问题才检查</span></div></article></div></section>
+            <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'spine' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('spine')"><span>体态与脊柱习惯</span><em>{{ activeProjectQuestionnaireGroup === 'spine' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'spine'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>日常坐姿情况</h4><div class="sub-options"><span>较好</span><span class="selected">偶尔歪斜</span><span>经常歪斜</span></div></article><article class="question-block"><h4>书包使用情况</h4><div class="sub-options"><span class="selected">双肩书包</span><span>单肩书包</span><span>经常单侧背包</span></div></article><article class="question-block"><h4>是否有高低肩、驼背、走路姿态异常等情况</h4><div class="sub-options"><span class="selected">无</span><span>不确定</span><span>有</span></div></article></div></section>
+            <section class="sub-question-group" :class="[{ expanded: activeProjectQuestionnaireGroup === 'mental' }, { 'is-readonly': projectQuestionnaireStatus === 'submitted' }]"><button class="question-group-toggle" type="button" @click="toggleProjectQuestionnaireGroup('mental')"><span>心理与情绪线索</span><em>{{ activeProjectQuestionnaireGroup === 'mental' ? '收起' : '展开' }}</em></button><div v-if="activeProjectQuestionnaireGroup === 'mental'" class="question-group-body" @click="selectProjectQuestionOption($event)"><article class="question-block"><h4>最近是否明显情绪低落或烦躁</h4><div class="sub-options"><span class="selected">无</span><span>偶尔</span><span>经常</span></div></article><article class="question-block"><h4>睡眠质量是否较差</h4><div class="sub-options"><span class="selected">无</span><span>偶尔</span><span>经常</span></div></article><article class="question-block"><h4>是否存在明显厌学、焦虑或人际交往困难</h4><div class="sub-options"><span class="selected">无</span><span>不确定</span><span>有</span></div></article><article class="question-block"><h4>是否有注意力不集中或多动冲动表现</h4><div class="sub-options"><span class="selected">无</span><span>偶尔</span><span>经常</span></div></article></div></section>
           </template>
 
           <template v-else-if="activeProjectSubPage === 'consent'">
@@ -985,8 +1061,8 @@ onBeforeUnmount(() => {
             <section class="sub-section"><h3>家长记录</h3><div class="sub-options"><span class="selected">今日已完成</span><span>今日未完成</span></div><textarea placeholder="填写训练备注"></textarea><button class="upload-placeholder" type="button">+ 上传图片</button></section>
           </template>
 
-          <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p>
-          <div class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'profile' ? '提交建档信息' : activeProjectSubPage === 'questionnaire' ? '提交首诊问卷' : activeProjectSubPage === 'consent' ? (currentProject.consent ? '查看知情同意书' : '确认签署') : activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
+          <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
+          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'consent' ? (currentProject.consent ? '查看知情同意书' : '确认签署') : activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -1928,6 +2004,7 @@ onBeforeUnmount(() => {
 .flow-node-sheet p{margin:0!important;color:#60757C!important;font-size:14px!important;line-height:1.6!important}
 /* project secondary pages */
 .project-subpage-screen{gap:10px!important;padding-bottom:86px!important;background:transparent!important}
+.project-subpage-screen:has(.questionnaire-progress){gap:9px!important}
 .project-subpage-title{height:34px!important;display:grid!important;grid-template-columns:34px minmax(0,1fr) 34px!important;align-items:center!important;gap:8px!important}
 .project-subpage-title h2{margin:0!important;text-align:center!important;color:#20343A!important;font-size:18px!important;font-weight:800!important}
 .project-sub-summary,.sub-section,.sub-task-list article{background:#fff!important;border:1px solid rgba(216,238,234,.72)!important;border-radius:8px!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}
@@ -1949,11 +2026,13 @@ onBeforeUnmount(() => {
 .sub-info-list b,.signed-info b{font-weight:700!important;color:#20343A!important;text-align:right!important}
 .sub-chip-list,.sub-options,.sub-check-list{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
 .sub-chip-list span,.sub-options span,.sub-check-list span{min-height:28px!important;padding:6px 9px!important;border-radius:8px!important;background:#F0FCFA!important;color:#42636B!important;border:1px solid rgba(216,238,234,.82)!important;font-size:12px!important;font-weight:700!important;line-height:1.25!important}
+.sub-options span,.sub-check-list span{border:0!important}
 .sub-options span.selected{background:#E4F8F6!important;border-color:#12A8AD!important;color:#12A8AD!important}
 .questionnaire-progress,.followup-ticket,.training-overview,.consent-name{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:12px!important}
 .questionnaire-progress strong,.followup-ticket strong,.training-overview strong,.consent-name strong{font-size:16px!important;color:#20343A!important;line-height:1.35!important}
 .questionnaire-progress p{margin-top:4px!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
-.questionnaire-progress span,.followup-ticket span,.training-overview span,.consent-state{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+.followup-ticket span,.training-overview span,.consent-state{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+.questionnaire-progress>div{width:100%!important}
 .consent-state.done{background:#E8F8F1!important;color:#18B884!important}
 .consent-content{max-height:300px!important;overflow:auto!important;-webkit-overflow-scrolling:touch!important}
 .consent-content p{margin:0 0 4px!important;color:#60757C!important;font-size:13px!important;line-height:1.65!important}
@@ -1971,7 +2050,109 @@ onBeforeUnmount(() => {
 .project-sub-bottom .primary{height:42px!important;border-radius:10px!important}
 @media(max-width:360px){.sub-form-grid{grid-template-columns:1fr!important}.questionnaire-progress,.followup-ticket,.training-overview,.consent-name{align-items:flex-start!important;flex-direction:column!important}.project-sub-bottom{left:12px!important;right:12px!important}}
 .phone-shell:has(.project-subpage-screen) .bottom-tabs{display:none!important}.phone-shell:has(.project-subpage-screen) .phone-content{height:calc(100% - 54px)!important;padding-bottom:112px!important}
+/* profile and first-visit questionnaire boundary refinement */
+.sub-text-field{display:flex!important;flex-direction:column!important;gap:6px!important;color:#8A9CA1!important;font-size:12px!important}
+.sub-text-field textarea{min-height:48px!important;background:#FAFEFD!important}
+.sub-muted{margin:0!important;color:#8A9CA1!important;font-size:12px!important;line-height:1.45!important}
+.sub-field-title{margin-top:2px!important;color:#60757C!important;font-size:13px!important;font-weight:800!important;line-height:1.25!important}
+.health-history span.none{background:#F7FAFA!important;color:#8A9CA1!important;border-style:dashed!important}
+.health-history span.selected{background:#E4F8F6!important;border-color:#12A8AD!important;color:#12A8AD!important}
+.sub-link-list{display:flex!important;flex-direction:column!important;gap:8px!important}
+.sub-link-list button{width:100%!important;min-height:54px!important;padding:10px 12px!important;border:1px solid rgba(216,238,234,.82)!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.045)!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:10px!important;text-align:left!important}
+.sub-link-list span{min-width:0!important;display:flex!important;flex-direction:column!important;gap:4px!important}
+.sub-link-list b{color:#20343A!important;font-size:14px!important;line-height:1.3!important}
+.sub-link-list small{color:#8A9CA1!important;font-size:12px!important;line-height:1.35!important}
+.sub-link-list em{font-style:normal!important;color:#12A8AD!important;font-size:18px!important;font-weight:800!important}
+.archive-toast{background:#FFF4E8!important;color:#C76D12!important}
+.questionnaire-progress i{grid-column:1/-1!important;width:100%!important;height:4px!important;margin-top:8px!important;border-radius:999px!important;background:#E8F3F1!important;display:block!important;overflow:hidden!important}
+.questionnaire-progress i span{display:block!important;width:17%!important;height:100%!important;border-radius:999px!important;background:#12A8AD!important}
+.sub-question-group{min-height:48px!important;padding:10px 14px!important;border:1px solid rgba(216,238,234,.72)!important;border-radius:8px!important;background:#fff!important;box-shadow:0 6px 16px rgba(28,91,92,.04)!important;display:flex!important;flex-direction:column!important;gap:0!important}
+.question-group-toggle{width:100%!important;min-height:28px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;color:#20343A!important;text-align:left!important}
+.question-group-toggle span{position:relative!important;min-width:0!important;display:inline-flex!important;align-items:center!important;gap:6px!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.25!important}.question-group-toggle span::before{content:""!important;width:3px!important;height:15px!important;border-radius:999px!important;background:#12A8AD!important;flex:none!important}
+.question-group-toggle em{font-style:normal!important;color:#12A8AD!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+.question-group-body{margin-top:10px!important;display:flex!important;flex-direction:column!important;gap:0!important}
+.sub-question-group.expanded .question-group-toggle{background:transparent!important}
+.sub-question-group .question-block{padding:10px 0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;gap:7px!important;border-top:1px solid #EEF5F4!important}
+.sub-question-group .question-block h4{margin:0!important;color:#41565C!important;font-size:14px!important;font-weight:500!important;line-height:1.35!important}
+.question-group-body .question-block:first-child{padding-top:0!important;border-top:0!important}
+.sub-question-group .sub-options span,.sub-question-group .sub-check-list span{background:#fff!important}
+.sub-question-group .sub-options span.selected,.sub-question-group .sub-check-list span.selected{background:#E4F8F6!important;border:0!important;color:#12A8AD!important}
+@media(max-width:390px){.sub-options span,.sub-check-list span{max-width:100%!important;word-break:break-word!important}.sub-link-list button{min-height:52px!important}.sub-question-group{padding:10px 13px!important}.sub-question-group .question-block{padding:10px 0!important}}
+.questionnaire-state-tag{flex:none!important;height:21px!important;padding:0 8px!important;border-radius:999px!important;display:inline-flex!important;align-items:center!important;line-height:21px!important;font-size:11px!important;font-weight:800!important;background:#FFF4E8!important;color:#F2994A!important;white-space:nowrap!important}
+.questionnaire-state-tag.saved{background:#E4F8F6!important;color:#12A8AD!important}
+.questionnaire-state-tag.submitted{background:#E8F8F1!important;color:#18B884!important}
+.questionnaire-actions{display:grid!important;grid-template-columns:1fr 1.35fr!important;gap:10px!important}
+.questionnaire-actions button{width:100%!important;height:42px!important;border-radius:10px!important;padding:0 8px!important;font-size:14px!important;white-space:nowrap!important}
+.questionnaire-actions .ghost{background:#F0FCFA!important;color:#12A8AD!important;border:1px solid rgba(216,238,234,.9)!important;box-shadow:none!important}
+.sub-question-group:not(.is-readonly) .sub-options span,.sub-question-group:not(.is-readonly) .sub-check-list span{cursor:pointer!important}
+.sub-question-group.is-readonly .sub-options span,.sub-question-group.is-readonly .sub-check-list span{pointer-events:none!important;color:#A2B2B7!important;background:#F7FAFA!important}
+.sub-question-group.is-readonly .sub-options span.selected,.sub-question-group.is-readonly .sub-check-list span.selected{color:#12A8AD!important;background:#E4F8F6!important}
+@media(max-width:390px){.questionnaire-actions{gap:8px!important}.questionnaire-actions button{font-size:13px!important;padding:0 6px!important}}
+/* project profile view/edit/submit states */
+.project-sub-summary{position:relative!important}
+.profile-state-tag{align-self:flex-start!important;margin-top:2px!important;padding:3px 8px!important;border-radius:999px!important;font-size:12px!important;font-weight:800!important;line-height:1.25!important;background:#E4F8F6!important;color:#12A8AD!important}
+.profile-state-tag.editing{background:#FFF4E8!important;color:#F2994A!important}
+.profile-state-tag.submitted{background:#E8F8F1!important;color:#18B884!important}
+.project-subpage-screen .sub-section.is-readonly input,.project-subpage-screen .sub-section.is-readonly textarea{border-color:transparent!important;background:#F8FCFB!important;color:#20343A!important;box-shadow:none!important;cursor:default!important;pointer-events:none!important;font-weight:700!important}
+.project-subpage-screen .sub-section.is-readonly label{color:#9AADB2!important}
+.project-subpage-screen .sub-section.is-editing input,.project-subpage-screen .sub-section.is-editing textarea{border-color:rgba(18,168,173,.42)!important;background:#fff!important;color:#20343A!important;box-shadow:0 0 0 2px rgba(18,168,173,.06)!important;font-weight:600!important}
+.project-subpage-screen .sub-section.is-editing .sub-options span,.project-subpage-screen .sub-section.is-editing .sub-check-list span{cursor:pointer!important}
+.project-subpage-screen .sub-section.is-readonly .sub-options span,.project-subpage-screen .sub-section.is-readonly .sub-check-list span{pointer-events:none!important}
+.profile-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important}
+.profile-actions.submitted{grid-template-columns:1fr 1.4fr!important}
+.profile-actions button{width:100%!important;height:42px!important;border-radius:10px!important;padding:0 8px!important;font-size:14px!important;white-space:nowrap!important}
+.profile-actions .ghost{background:#F0FCFA!important;color:#12A8AD!important;border:1px solid rgba(216,238,234,.9)!important;box-shadow:none!important}
+@media(max-width:390px){.profile-actions{gap:8px!important}.profile-actions button{font-size:13px!important;padding:0 6px!important}}
+/* project profile required marker and long school field fix */
+.project-subpage-screen .sub-section.is-editing label.required{display:flex!important;flex-direction:column!important;gap:5px!important;position:relative!important}
+.project-subpage-screen .sub-section.is-editing label.required .field-label{display:inline-flex!important;align-items:center!important;align-self:flex-start!important;min-height:16px!important;line-height:16px!important;color:#8A9CA1!important}
+.project-subpage-screen .sub-section.is-editing label.required .field-label::after,.project-subpage-screen .sub-section.is-editing .sub-field-title.required::after{content:'*'!important;color:#E86A6A!important;font-size:12px!important;font-weight:900!important;line-height:1!important;display:inline-flex!important;align-items:center!important;margin-left:3px!important;transform:translateY(-.5px)!important}
+.project-subpage-screen .sub-section.is-readonly label.required .field-label::after{content:none!important}
+.sub-form-grid .wide-field{grid-column:1/-1!important}
+.project-subpage-screen .sub-section.is-readonly .wide-field input{height:auto!important;min-height:38px!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.45!important;padding-top:9px!important;padding-bottom:9px!important;word-break:break-word!important}
+.project-subpage-screen .sub-section.is-editing .wide-field input{height:40px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.project-subpage-screen .sub-field-title.required{display:block!important;margin-top:4px!important}
+.project-subpage-screen .sub-section.is-readonly .sub-field-title.required::after{content:none!important}
+/* project profile layout refinement */
+.project-sub-summary{padding:12px 14px!important;gap:4px!important}
+.project-summary-line{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;min-width:0!important}
+.project-summary-line p{min-width:0!important;margin:0!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.project-summary-line .profile-state-tag,.project-summary-line .questionnaire-state-tag{flex:none!important;margin-top:0!important;height:21px!important;padding:0 8px!important;display:inline-flex!important;align-items:center!important;line-height:21px!important;font-size:11px!important}
+.guardian-grid{align-items:start!important}
+.guardian-grid label{min-width:0!important}
+.guardian-grid .emergency-phone{grid-column:auto!important}
+.sub-link-list.compact button{min-height:50px!important;box-shadow:none!important;background:#FAFEFD!important}
+@media(max-width:390px){.guardian-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}.guardian-grid input{font-size:12px!important}.project-summary-line{gap:8px!important}.project-summary-line .profile-state-tag,.project-summary-line .questionnaire-state-tag{padding:0 7px!important}.guardian-grid .emergency-phone{grid-column:1/-1!important}}
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
