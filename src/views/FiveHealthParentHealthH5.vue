@@ -56,6 +56,7 @@ const projectSubmitMessage = ref('')
 const projectArchiveToast = ref('')
 const activeProjectQuestionnaireGroup = ref('')
 const projectQuestionnaireStatus = ref('editing')
+const consentSigned = ref(false)
 const consentConfirmed = ref(false)
 const projectProfileStatus = ref('saved')
 const activeReportDoc = ref(null)
@@ -591,22 +592,28 @@ function onReportTouchEnd(event) {
   if (!event.touches.length) reportTouchState.mode = ''
 }
 function signCurrentProject() {
-  currentProject.value.consent = true
-  currentProject.value.status = '管理中'
-  currentProject.value.progress = Math.max(currentProject.value.progress, 28)
-  currentProject.value.flow = currentProject.value.flow.map((item) => {
-    if (item.state === 'not_started' && ['营养评估报告', '随访问卷', '家庭饮食记录'].includes(item.title)) return { ...item, state: item.title === '营养评估报告' ? 'current' : 'pending', tip: item.title === '营养评估报告' ? '待生成' : '待处理', action: item.title === '营养评估报告' ? 'report' : item.title === '随访问卷' ? 'questionnaire' : 'training' }
-    return item
-  })
+  consentSigned.value = true
+  consentConfirmed.value = true
+  specialProjects.value = specialProjects.value.map((project) => ({
+    ...project,
+    consent: true,
+    status: project.status === '待签署' ? '管理中' : project.status,
+    progress: Math.max(project.progress, 28),
+    flow: project.flow.map((item) => {
+      if (item.state === 'not_started' && ['营养评估报告', '随访问卷', '家庭饮食记录'].includes(item.title)) return { ...item, state: item.title === '营养评估报告' ? 'current' : 'pending', tip: item.title === '营养评估报告' ? '待生成' : '待处理', action: item.title === '营养评估报告' ? 'report' : item.title === '随访问卷' ? 'questionnaire' : 'training' }
+      return item
+    }),
+  }))
 }
 function confirmProjectConsent() {
-  if (currentProject.value.consent) {
+  if (consentSigned.value) {
     backToProjectFlow()
     return
   }
   if (!consentConfirmed.value) return
   signCurrentProject()
   projectSubmitMessage.value = '知情同意书已签署'
+  backToProjectFlow()
 }
 function canOpenFlowNode(item) {
   return Boolean(item?.action && item.state !== 'not_started')
@@ -628,7 +635,7 @@ function openProjectPrepPage(target) {
   page.value = 'projectSubPage'
   projectSubmitMessage.value = ''
   projectArchiveToast.value = ''
-  if (target === 'consent') consentConfirmed.value = currentProject.value.consent
+  if (target === 'consent') consentConfirmed.value = consentSigned.value
 }
 function backToProjectFlow() {
   projectSubmitMessage.value = ''
@@ -639,7 +646,7 @@ function closeFlowNode() {
   activeFlowNode.value = null
 }
 function flowActionLabel(item) {
-  const map = { profile: '查看儿童档案', questionnaire: '查看问卷', consent: currentProject.value.consent ? '查看知情同意书' : '去签署知情同意书', followup: '查看复诊计划', training: '查看家庭训练记录' }
+  const map = { profile: '查看儿童档案', questionnaire: '查看问卷', consent: consentSigned.value ? '查看知情同意书' : '去签署知情同意书', followup: '查看复诊计划', training: '查看家庭训练记录' }
   return map[item?.action] || '查看详情'
 }
 function editProjectProfile() {
@@ -709,7 +716,7 @@ function toggleProjectQuestionnaireGroup(group) {
   activeProjectQuestionnaireGroup.value = activeProjectQuestionnaireGroup.value === group ? '' : group
 }
 function confirmFlowNodeAction() {
-  if (activeFlowNode.value?.action === 'consent' && !currentProject.value.consent) {
+  if (activeFlowNode.value?.action === 'consent' && !consentSigned.value) {
     signCurrentProject()
     closeFlowNode()
     return
@@ -976,25 +983,27 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-else-if="page === 'project'" class="screen project-screen">
-          <section class="project-prep-card" aria-label="通用准备事项"><button type="button" @click="openProjectPrepPage('profile')"><strong>儿童建档</strong><span :class="['prep-status', projectProfileStatus]">{{ projectProfileStatusText }}</span></button><button type="button" @click="openProjectPrepPage('questionnaire')"><strong>首诊问卷</strong><span :class="['prep-status', projectQuestionnaireStatus]">{{ projectQuestionnaireStatusText }}</span></button><button type="button" @click="openProjectPrepPage('consent')"><strong>知情同意书</strong><span :class="['prep-status', currentProject.consent ? 'submitted' : 'pending']">{{ currentProject.consent ? '已签署' : '待签署' }}</span></button></section>
+          <section class="project-prep-card" aria-label="通用准备事项"><button type="button" @click="openProjectPrepPage('profile')"><strong>儿童建档</strong><span class="prep-status submitted">已完成</span></button><button type="button" @click="openProjectPrepPage('questionnaire')"><strong>首诊问卷</strong><span class="prep-status submitted">已提交</span></button><button type="button" @click="openProjectPrepPage('consent')"><strong>知情同意书</strong><span :class="['prep-status', consentSigned ? 'submitted' : 'pending']">{{ consentSigned ? '已签署' : '待签署' }}</span></button></section>
           <article class="project-child-card">
             <strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong>
-            <button class="project-sheet-entry" type="button" @click="showProjectSheet = true">已参与 {{ specialProjects.length }} 个专案 <b>›</b></button>
+            <button class="project-sheet-entry" type="button" :disabled="!consentSigned" @click="showProjectSheet = true">已参与 {{ consentSigned ? specialProjects.length : 0 }} 个专案 <b v-if="consentSigned">›</b></button>
           </article>
 
+          <article v-if="!consentSigned" class="project-empty-card">
+            <strong>暂未参加专案</strong>
+            <p>完成知情同意书签署后，可查看并参与健康管理专案</p>
+          </article>
+
+          <template v-else>
           <article class="project-status-card current-project-card">
             <div class="project-detail-main">
               <strong>{{ currentProject.name }}</strong>
-              <p>{{ currentProject.specialty }}｜主治医生：{{ currentProject.doctor }}｜开始：{{ currentProject.startDate }}</p>
-              <p v-if="!currentProject.consent" class="consent-inline">知情同意未签署</p>
+              <p>{{ currentProject.specialty }}｜主治医生：{{ currentProject.doctor }}</p>
+              <p>开始日期：{{ currentProject.startDate }}</p>
+
             </div>
 </article>
 
-          <article v-if="!currentProject.consent" class="project-lock-tip">
-            <strong>该专案尚未签署知情同意书</strong>
-            <p>签署后可查看该专案报告、健康指导和家庭服务。</p>
-            <button type="button" @click="openProjectPrepPage('consent')">去签署知情同意书</button>
-          </article>
 
           <div class="project-tabs">
             <button :class="{ active: activeProjectPanel === 'flow' }" type="button" @click="activeProjectPanel = 'flow'">流程</button>
@@ -1007,7 +1016,7 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else-if="activeProjectPanel === 'report'">
-            <article v-if="!currentProject.consent" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
+            <article v-if="!consentSigned" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
             <template v-else>
               <section class="archive-section archive-collapsible">
                 <div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div>
@@ -1022,8 +1031,9 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else>
-            <article v-if="!currentProject.consent" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看医生指导、随访问卷和家庭训练记录。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
+            <article v-if="!consentSigned" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看医生指导、随访问卷和家庭训练记录。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
             <template v-else><article v-for="item in currentProject.services" :key="item.title" class="service-row project-service-row"><b>{{ item.icon }}</b><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span>进入</span></article><article class="message-card project-message-card"><strong>在线互动</strong><p v-for="item in projectMessages" :key="item.text"><b>{{ item.from }}：</b>{{ item.text }}</p></article></template>
+          </template>
           </template>
         </section>
         <section v-else-if="page === 'projectSubPage'" class="screen project-subpage-screen">
@@ -1053,10 +1063,10 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else-if="activeProjectSubPage === 'consent'">
-            <section class="sub-section consent-name"><strong>{{ currentProject.name }}知情同意书</strong><span :class="['consent-state', currentProject.consent ? 'done' : 'pending']">{{ currentProject.consent ? '已签署' : '待签署' }}</span></section>
-            <section v-if="currentProject.consent" class="sub-section signed-info"><p><em>签署时间</em><b>2026-04-02 10:18</b></p><p><em>签署人</em><b>{{ parentProfile.name }}</b></p></section>
-            <section class="sub-section consent-content"><h3>服务内容</h3><p>本专案将围绕儿童视力健康筛查、专科评估、随访管理和家庭干预进行连续健康管理。</p><h3>数据使用说明</h3><p>筛查和随访数据仅用于本次健康管理、医生评估和家长端报告展示。</p><h3>家长确认事项</h3><p>家长确认已了解服务边界，并配合完成问卷、复诊和家庭训练记录。</p><h3>风险与注意事项</h3><p>如儿童出现视力快速下降、眼痛等情况，应及时到医疗机构进一步检查。</p></section>
-            <label v-if="!currentProject.consent" class="consent-check"><input v-model="consentConfirmed" type="checkbox" />我已阅读并理解以上内容</label>
+            <section class="sub-section consent-name"><strong>专案知情同意书</strong><span :class="['consent-state', consentSigned ? 'done' : 'pending']">{{ consentSigned ? '已签署' : '待签署' }}</span></section>
+            <section v-if="consentSigned" class="sub-section signed-info"><p><em>签署时间</em><b>2026-04-02 10:18</b></p><p><em>签署人</em><b>{{ parentProfile.name }}</b></p></section>
+            <section class="sub-section consent-content"><h3>服务内容</h3><p>本知情同意书适用于儿童健康管理相关专案服务，包括健康筛查、专科评估、问卷采集、随访管理、家庭干预、复诊提醒及报告展示等内容。</p><h3>数据使用说明</h3><p>筛查和随访数据仅用于本次健康管理、医生评估和家长端报告展示。</p><h3>家长确认事项</h3><p>家长确认已了解服务边界，并同意配合完成问卷、复诊和家庭训练/饮食记录等事项。</p><h3>风险与注意事项</h3><p>如儿童出现视力下降、体重异常、脊柱姿态异常、口腔问题或其他健康异常，应及时到医疗机构进一步检查。</p></section>
+            <label v-if="!consentSigned" class="consent-check"><input v-model="consentConfirmed" type="checkbox" />我已阅读并理解以上内容</label>
           </template>
 
           <template v-else-if="activeProjectSubPage === 'followup'">
@@ -1073,7 +1083,7 @@ onBeforeUnmount(() => {
           </template>
 
           <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
-          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!currentProject.consent && !consentConfirmed" @click="confirmProjectConsent">{{ currentProject.consent ? '返回专案流程' : '确认签署' }}</button></div><div v-else class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
+          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!consentSigned && !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '返回专案流程' : '确认签署' }}</button></div><div v-else class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -1963,7 +1973,7 @@ onBeforeUnmount(() => {
 .phone-content{height:calc(100% - 120px)!important;padding-bottom:calc(30px + env(safe-area-inset-bottom))!important}
 @media (hover:none) and (pointer:coarse), (max-width:768px){.phone-content{height:calc(100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important}.bottom-tabs{height:66px!important}}
 @media(max-width:360px){.bottom-tabs button::before{width:64px!important;height:50px!important}}
-.project-screen{gap:10px!important;padding-bottom:12px}.project-screen .project-child-card{padding:13px 14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;align-items:center;justify-content:space-between;gap:10px}.project-screen .project-child-card strong{font-size:17px;margin:0;color:#20343A}.project-screen .project-child-card em{font-size:13px;color:#12A8AD;background:transparent;padding:0;font-style:normal;white-space:nowrap}.project-switcher{margin:0 -14px;padding:0 14px 2px;display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.project-switcher::-webkit-scrollbar{display:none}.project-switcher button{min-width:188px;padding:11px 12px;border:0;border-radius:12px;background:#fff;text-align:left;box-shadow:0 7px 18px rgba(28,91,92,.055)}.project-switcher button.active{background:#EFFBF8;box-shadow:inset 0 0 0 1px rgba(18,168,173,.28),0 8px 18px rgba(18,168,173,.08)}.project-switcher strong{display:block;color:#20343A;font-size:14px;line-height:1.35}.project-switcher small{display:block;margin-top:6px;color:#60757C;font-size:12px}.current-project-card{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:11px}.project-detail-main>strong{display:block;color:#20343A;font-size:17px;line-height:1.35}.project-detail-main>p{margin:6px 0 0;color:#60757C;font-size:13px;line-height:1.5}.project-detail-main .consent-inline{display:inline-flex;margin-top:9px;padding:5px 8px;border-radius:8px;background:#FFF7E8;color:#A66A12;font-size:12px;font-weight:700}.project-screen .lifecycle-card{padding:10px 6px;background:#F6FBFA;border:0;border-radius:10px;box-shadow:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}.life-step{min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:#9AA9AD;font-size:11px}.life-step i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#EEF3F2;color:transparent;position:relative;font-size:0}.life-step.done i::after{content:'✓';color:#12A8AD;font-size:11px}.life-step.current i{background:#12A8AD}.life-step.current i::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff}.life-step.todo i::after{content:'';width:5px;height:5px;border-radius:50%;background:#B8C4C5}.life-step span{white-space:nowrap}.project-lock-tip,.locked-card{padding:15px;border:0;border-radius:8px;background:#FFFAF2;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-lock-tip strong,.locked-card strong{font-size:15px;color:#20343A}.project-lock-tip p,.locked-card p{margin:6px 0 10px;color:#60757C;font-size:13px;line-height:1.55}.project-lock-tip button,.locked-card button{border:0;border-radius:10px;background:#12A8AD;color:#fff;padding:8px 12px;font-weight:700}.project-tabs{height:38px;display:grid;grid-template-columns:repeat(3,1fr);align-items:end;border-bottom:1px solid rgba(216,238,234,.72)}.project-tabs button{height:38px;border:0;background:transparent;color:#60757C;font-size:14px;font-weight:700;position:relative}.project-tabs button.active{color:#12A8AD}.project-tabs button.active::after{content:'';position:absolute;left:28%;right:28%;bottom:-1px;height:2px;border-radius:999px;background:#12A8AD}.flow-timeline{padding:4px 0 2px;background:#fff;border-radius:8px;box-shadow:0 8px 22px rgba(28,91,92,.055)}.flow-timeline .flow-row{position:relative;margin:0;padding:13px 13px 13px 35px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border:0;border-radius:0;box-shadow:none;background:transparent}.flow-timeline .flow-row+.flow-row{border-top:1px solid rgba(216,238,234,.58)}.flow-timeline .flow-row>i{position:absolute;left:15px;top:19px;width:8px;height:8px;border-radius:50%;background:#12A8AD;z-index:1}.flow-timeline .flow-row:not(:last-child)::after{content:'';position:absolute;left:18px;top:29px;bottom:-8px;width:1px;background:rgba(18,168,173,.18)}.flow-timeline .flow-row strong{font-size:15px;color:#20343A}.flow-timeline .flow-row p{margin-top:4px;color:#60757C}.flow-timeline .flow-row span{align-self:start;padding:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:700}.project-report-card,.archive-section,.project-trend-grid .trend-card,.project-service-row,.project-message-card{border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-report-card{padding:14px}.problem-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.problem-tags span{padding:4px 8px;border-radius:999px;background:#FFF0E8;color:#C96D20;font-size:12px}.doctor-advice{margin-top:10px;padding:10px;border-radius:13px;background:#F3FAF8;color:#31565C;font-size:13px;line-height:1.55}.archive-section{padding:14px;display:flex;flex-direction:column;gap:0}.archive-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}.archive-head strong{font-size:16px;color:#20343A}.archive-head span{color:#8A9CA1;font-size:12px}.archive-card.compact{min-height:88px;padding:11px 12px;background:#fff;border:0;border-radius:10px;box-shadow:none;border-top:1px solid rgba(216,238,234,.62)}.archive-section .archive-card.compact:first-of-type{border-top:0}.archive-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.archive-title strong{min-width:0;color:#20343A;font-size:15px}.archive-title button{border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0;white-space:nowrap}.archive-card.compact p{margin:5px 0 0;color:#60757C;font-size:12px;line-height:1.4}.archive-card.compact small{display:block;margin-top:5px;color:#20343A;font-size:13px;line-height:1.45;font-weight:500}.project-trend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.project-trend-grid .trend-card{padding:12px}.trend-card div{display:flex;justify-content:space-between;gap:8px}.trend-card span{color:#8A9CA1;font-size:12px}.trend-card b{display:block;margin-top:8px;color:#20343A}.trend-card svg{width:100%;height:44px;margin-top:6px}.trend-card polyline{fill:none;stroke:#12A8AD;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.project-service-row{padding:12px;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}.project-service-row>b{width:34px;height:34px;border-radius:13px;background:#E4F8F6;color:#12A8AD;display:grid;place-items:center}.project-service-row p{margin-top:5px;color:#60757C;font-size:13px;line-height:1.55}.project-service-row span{color:#12A8AD;font-size:13px;font-weight:700}.project-message-card{padding:15px}.project-message-card p{padding:9px 0;border-top:1px solid rgba(216,238,234,.72);color:#60757C;font-size:13px;line-height:1.55}.report-doc-overlay{position:absolute;inset:54px 0 0;z-index:30;background:#F8FEFC;overflow:auto;padding:14px}.report-doc-page{min-height:100%;padding:14px;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);color:#20343A}.doc-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}.doc-title button{border:0;border-radius:8px;background:#EDF8F6;color:#12A8AD;padding:7px 9px;font-size:12px;font-weight:800}.doc-title strong{font-size:17px}.doc-title p{margin:3px 0 0;color:#60757C;font-size:12px}.report-doc-page img{width:100%;height:auto;border-radius:8px;background:#EEF3F2;display:block}
+.project-screen{gap:10px!important;padding-bottom:12px}.project-screen .project-child-card{padding:13px 14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;align-items:center;justify-content:space-between;gap:10px}.project-screen .project-child-card strong{font-size:17px;margin:0;color:#20343A}.project-screen .project-child-card em{font-size:13px;color:#12A8AD;background:transparent;padding:0;font-style:normal;white-space:nowrap}.project-switcher{margin:0 -14px;padding:0 14px 2px;display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.project-switcher::-webkit-scrollbar{display:none}.project-switcher button{min-width:188px;padding:11px 12px;border:0;border-radius:12px;background:#fff;text-align:left;box-shadow:0 7px 18px rgba(28,91,92,.055)}.project-switcher button.active{background:#EFFBF8;box-shadow:inset 0 0 0 1px rgba(18,168,173,.28),0 8px 18px rgba(18,168,173,.08)}.project-switcher strong{display:block;color:#20343A;font-size:14px;line-height:1.35}.project-switcher small{display:block;margin-top:6px;color:#60757C;font-size:12px}.current-project-card{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:11px}.project-detail-main>strong{display:block;color:#20343A;font-size:17px;line-height:1.35}.project-detail-main>p{margin:6px 0 0;color:#60757C;font-size:13px;line-height:1.5}.project-detail-main .consent-inline{display:inline-flex;margin-top:9px;padding:5px 8px;border-radius:8px;background:#FFF7E8;color:#A66A12;font-size:12px;font-weight:700}.project-screen .lifecycle-card{padding:10px 6px;background:#F6FBFA;border:0;border-radius:10px;box-shadow:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}.life-step{min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:#9AA9AD;font-size:11px}.life-step i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#EEF3F2;color:transparent;position:relative;font-size:0}.life-step.done i::after{content:'✓';color:#12A8AD;font-size:11px}.life-step.current i{background:#12A8AD}.life-step.current i::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff}.life-step.todo i::after{content:'';width:5px;height:5px;border-radius:50%;background:#B8C4C5}.life-step span{white-space:nowrap}.project-empty-card{padding:16px 15px;border:0;border-radius:8px;background:#F0FBF8;box-shadow:0 8px 22px rgba(28,91,92,.045);color:#20343A}.project-empty-card strong{display:block;font-size:16px;line-height:1.35}.project-empty-card p{margin:6px 0 0;color:#60757C;font-size:13px;line-height:1.55}.project-lock-tip,.locked-card{padding:15px;border:0;border-radius:8px;background:#FFFAF2;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-lock-tip strong,.locked-card strong{font-size:15px;color:#20343A}.project-lock-tip p,.locked-card p{margin:6px 0 10px;color:#60757C;font-size:13px;line-height:1.55}.project-lock-tip button,.locked-card button{border:0;border-radius:10px;background:#12A8AD;color:#fff;padding:8px 12px;font-weight:700}.project-tabs{height:38px;display:grid;grid-template-columns:repeat(3,1fr);align-items:end;border-bottom:1px solid rgba(216,238,234,.72)}.project-tabs button{height:38px;border:0;background:transparent;color:#60757C;font-size:14px;font-weight:700;position:relative}.project-tabs button.active{color:#12A8AD}.project-tabs button.active::after{content:'';position:absolute;left:28%;right:28%;bottom:-1px;height:2px;border-radius:999px;background:#12A8AD}.flow-timeline{padding:4px 0 2px;background:#fff;border-radius:8px;box-shadow:0 8px 22px rgba(28,91,92,.055)}.flow-timeline .flow-row{position:relative;margin:0;padding:13px 13px 13px 35px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border:0;border-radius:0;box-shadow:none;background:transparent}.flow-timeline .flow-row+.flow-row{border-top:1px solid rgba(216,238,234,.58)}.flow-timeline .flow-row>i{position:absolute;left:15px;top:19px;width:8px;height:8px;border-radius:50%;background:#12A8AD;z-index:1}.flow-timeline .flow-row:not(:last-child)::after{content:'';position:absolute;left:18px;top:29px;bottom:-8px;width:1px;background:rgba(18,168,173,.18)}.flow-timeline .flow-row strong{font-size:15px;color:#20343A}.flow-timeline .flow-row p{margin-top:4px;color:#60757C}.flow-timeline .flow-row span{align-self:start;padding:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:700}.project-report-card,.archive-section,.project-trend-grid .trend-card,.project-service-row,.project-message-card{border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-report-card{padding:14px}.problem-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.problem-tags span{padding:4px 8px;border-radius:999px;background:#FFF0E8;color:#C96D20;font-size:12px}.doctor-advice{margin-top:10px;padding:10px;border-radius:13px;background:#F3FAF8;color:#31565C;font-size:13px;line-height:1.55}.archive-section{padding:14px;display:flex;flex-direction:column;gap:0}.archive-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}.archive-head strong{font-size:16px;color:#20343A}.archive-head span{color:#8A9CA1;font-size:12px}.archive-card.compact{min-height:88px;padding:11px 12px;background:#fff;border:0;border-radius:10px;box-shadow:none;border-top:1px solid rgba(216,238,234,.62)}.archive-section .archive-card.compact:first-of-type{border-top:0}.archive-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.archive-title strong{min-width:0;color:#20343A;font-size:15px}.archive-title button{border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0;white-space:nowrap}.archive-card.compact p{margin:5px 0 0;color:#60757C;font-size:12px;line-height:1.4}.archive-card.compact small{display:block;margin-top:5px;color:#20343A;font-size:13px;line-height:1.45;font-weight:500}.project-trend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.project-trend-grid .trend-card{padding:12px}.trend-card div{display:flex;justify-content:space-between;gap:8px}.trend-card span{color:#8A9CA1;font-size:12px}.trend-card b{display:block;margin-top:8px;color:#20343A}.trend-card svg{width:100%;height:44px;margin-top:6px}.trend-card polyline{fill:none;stroke:#12A8AD;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.project-service-row{padding:12px;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}.project-service-row>b{width:34px;height:34px;border-radius:13px;background:#E4F8F6;color:#12A8AD;display:grid;place-items:center}.project-service-row p{margin-top:5px;color:#60757C;font-size:13px;line-height:1.55}.project-service-row span{color:#12A8AD;font-size:13px;font-weight:700}.project-message-card{padding:15px}.project-message-card p{padding:9px 0;border-top:1px solid rgba(216,238,234,.72);color:#60757C;font-size:13px;line-height:1.55}.report-doc-overlay{position:absolute;inset:54px 0 0;z-index:30;background:#F8FEFC;overflow:auto;padding:14px}.report-doc-page{min-height:100%;padding:14px;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);color:#20343A}.doc-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}.doc-title button{border:0;border-radius:8px;background:#EDF8F6;color:#12A8AD;padding:7px 9px;font-size:12px;font-weight:800}.doc-title strong{font-size:17px}.doc-title p{margin:3px 0 0;color:#60757C;font-size:12px}.report-doc-page img{width:100%;height:auto;border-radius:8px;background:#EEF3F2;display:block}
 /* report document viewer optimization */
 .report-doc-overlay{position:absolute!important;inset:54px 0 0!important;z-index:30!important;display:flex!important;flex-direction:column!important;background:#F8FEFC!important;padding:0!important;overflow:hidden!important;color:#20343A!important}.report-doc-top{height:52px!important;min-height:52px!important;padding:0 14px!important;display:grid!important;grid-template-columns:34px minmax(0,1fr) 34px!important;align-items:center!important;gap:10px!important;background:rgba(255,255,255,.96)!important;border-bottom:1px solid rgba(216,238,234,.78)!important;box-shadow:0 4px 14px rgba(32,52,58,.04)!important}.report-doc-top button{width:34px!important;height:34px!important;border:0!important;border-radius:50%!important;display:grid!important;place-items:center!important;background:#E4F8F6!important;color:#12A8AD!important;padding:0!important}.report-doc-top h2{margin:0!important;text-align:center!important;color:#20343A!important;font-size:17px!important;font-weight:800!important;line-height:1.2!important}.report-doc-info{padding:12px 16px 10px!important;background:#fff!important;border-bottom:1px solid rgba(216,238,234,.68)!important}.report-doc-info strong{display:block!important;color:#20343A!important;font-size:16px!important;line-height:1.35!important}.report-doc-info p{margin:4px 0 0!important;color:#60757C!important;font-size:12px!important;line-height:1.4!important}.report-doc-tools{height:48px!important;padding:8px 14px!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;background:#fff!important;border-bottom:1px solid rgba(216,238,234,.68)!important}.report-doc-tools button{height:32px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:13px!important;font-weight:800!important;box-shadow:none!important}.report-doc-tools button:disabled{opacity:.45!important;color:#8FA5AD!important;background:#F7FAFA!important}.report-doc-stage{flex:1!important;min-height:0!important;overflow:auto!important;padding:12px!important;background:#F1F5F5!important;text-align:center!important;overscroll-behavior:contain!important}.report-doc-stage img{display:block!important;min-width:100%!important;max-width:none!important;height:auto!important;margin:0 auto!important;border-radius:4px!important;background:#fff!important;box-shadow:0 8px 22px rgba(31,54,58,.12)!important;transform-origin:top center!important}.report-doc-stage::-webkit-scrollbar{width:5px;height:5px}.report-doc-stage::-webkit-scrollbar-track{background:transparent}.report-doc-stage::-webkit-scrollbar-thumb{background:rgba(96,117,124,.26);border-radius:999px}
 /* report document viewer secondary-page style alignment */
@@ -1981,7 +1991,7 @@ onBeforeUnmount(() => {
 .prep-status.submitted{background:#E8F8F1!important;color:#18B884!important}.prep-status.saved{background:#E4F8F6!important;color:#12A8AD!important}.prep-status.editing,.prep-status.pending{background:#FFF4E8!important;color:#F2994A!important}
 @media(max-width:390px){.project-prep-card{height:66px!important;padding:7px!important;gap:5px!important}.project-prep-card button{height:52px!important;padding:6px 3px!important}.project-prep-card strong{font-size:12px!important}.prep-status{padding:0 5px!important;font-size:10px!important}}
 .project-sheet-entry{flex:none;border:0!important;background:transparent!important;color:var(--primary-dark,#12A8AD)!important;padding:0!important;font-size:13px!important;font-weight:800!important;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;box-shadow:none!important}
-.project-sheet-entry b{font-size:18px;line-height:1;font-weight:800;color:inherit}
+.project-sheet-entry b{font-size:18px;line-height:1;font-weight:800;color:inherit}.project-sheet-entry:disabled{color:#8A9CA1!important;cursor:default!important}
 .project-screen .project-switcher{display:none!important}
 .project-sheet-mask{z-index:62!important}
 .project-select-sheet{max-height:46vh!important;padding:16px 16px 18px!important;border-radius:22px 22px 0 0!important;background:#fff!important;overflow:hidden!important}
@@ -2151,6 +2161,15 @@ onBeforeUnmount(() => {
 .sub-link-list.compact button{min-height:50px!important;box-shadow:none!important;background:#FAFEFD!important}
 @media(max-width:390px){.guardian-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}.guardian-grid input{font-size:12px!important}.project-summary-line{gap:8px!important}.project-summary-line .profile-state-tag,.project-summary-line .questionnaire-state-tag{padding:0 7px!important}.guardian-grid .emergency-phone{grid-column:1/-1!important}}
 </style>
+
+
+
+
+
+
+
+
+
 
 
 
