@@ -49,8 +49,17 @@ const onlyAbnormal = ref(false)
 const expandedResultGroups = ref(['vision', 'weight', 'oral'])
 const activeProjectPanel = ref('flow')
 const activeSpecialProjectId = ref('vision')
+const showProjectSheet = ref(false)
+const activeFlowNode = ref(null)
+const activeProjectSubPage = ref('profile')
+const projectSubmitMessage = ref('')
 const activeReportDoc = ref(null)
+const lisArchiveExpanded = ref(true)
+const pacsArchiveExpanded = ref(false)
 const reportZoom = ref(1)
+const reportImageX = ref(0)
+const reportImageY = ref(0)
+const reportTouchState = reactive({ mode: '', startX: 0, startY: 0, imageX: 0, imageY: 0, distance: 0, scale: 1 })
 let bannerTimer = null
 
 const bannerImages = [
@@ -299,13 +308,13 @@ const specialProjects = ref([
   {
     id: 'vision', type: '视力', name: '视力健康管理专案', specialty: '儿童眼保健专科', doctor: '王医生', status: '管理中', consent: true, progress: 68, startDate: '2026-03-28', stage: '管理', currentStep: 3,
     flow: [
-      { title: '儿童建档', desc: '已完成基础档案与联系方式登记', status: '已完成' },
-      { title: '首诊问卷', desc: '首次专科就诊信息已提交', status: '已提交' },
-      { title: '知情同意书', desc: '该视力专案已完成签署', status: '已签署' },
-      { title: '专科诊疗报告', desc: '儿童眼保健专科报告已生成', status: '已生成' },
-      { title: '复诊计划', desc: '2026-04-18 09:30 待复诊', status: '待复诊' },
-      { title: '家庭训练记录', desc: '本周视觉训练记录待提交', status: '待提交' },
-      { title: '结案评估', desc: '完成管理周期后开放', status: '未开始' },
+      { title: '儿童建档', desc: '已完成基础档案与联系方式登记', state: 'completed', action: 'profile' },
+      { title: '首诊问卷', desc: '首次专科就诊信息已提交', state: 'completed', action: 'questionnaire' },
+      { title: '知情同意书', desc: '该视力专案已完成签署', state: 'completed', action: 'consent' },
+      { title: '专科诊疗报告', desc: '儿童眼保健专科报告已生成', state: 'completed', action: 'report' },
+      { title: '复诊计划', desc: '2026-04-18 09:30 待复诊', state: 'current', tip: '待复诊', action: 'followup' },
+      { title: '家庭训练记录', desc: '本周视觉训练记录待提交', state: 'pending', tip: '待提交', action: 'training' },
+      { title: '结案评估', desc: '完成阶段评估后结案', state: 'not_started' },
     ],
     report: {
       time: '2026-04-02', conclusion: '存在近视发展风险，建议进行用眼行为干预与定期复查', problems: ['裸眼视力下降', '远视储备不足', '眼轴增长偏快'], advice: '增加户外活动，控制近距离用眼，按计划复诊',
@@ -336,20 +345,22 @@ const specialProjects = ref([
   {
     id: 'weight', type: '体重', name: '体重与营养管理专案', specialty: '儿童营养专科', doctor: '刘医生', status: '待签署', consent: false, progress: 12, startDate: '2026-04-08', stage: '授权', currentStep: 2,
     flow: [
-      { title: '儿童建档', desc: '已完成身高体重与基础信息登记', status: '已完成' },
-      { title: '首诊问卷', desc: '饮食与运动情况已提交', status: '已提交' },
-      { title: '知情同意书', desc: '该体重营养专案待签署', status: '待签署' },
-      { title: '营养评估报告', desc: '签署后开放查看', status: '未开放' },
-      { title: '随访问卷', desc: '签署后接收医生推送', status: '未开放' },
-      { title: '家庭饮食记录', desc: '签署后开放提交', status: '未开放' },
+      { title: '儿童建档', desc: '已完成身高体重与基础信息登记', state: 'completed', action: 'profile' },
+      { title: '首诊问卷', desc: '饮食与运动情况已提交', state: 'completed', action: 'questionnaire' },
+      { title: '知情同意书', desc: '该体重营养专案待签署', state: 'current', tip: '待签署', action: 'consent' },
+      { title: '营养评估报告', desc: '签署后开放查看', state: 'not_started' },
+      { title: '随访问卷', desc: '签署后开放填写', state: 'not_started' },
+      { title: '家庭饮食记录', desc: '签署后开放提交', state: 'not_started' },
+      { title: '结案评估', desc: '完成阶段管理后结案', state: 'not_started' },
     ],
     report: { time: '待开放', conclusion: '签署知情同意书后开放营养评估报告。', problems: ['BMI 偏高', '蔬果摄入不足'], advice: '签署后查看医生建议', lis: [], pacs: [], trends: [] },
     services: [],
   },
 ])
 
-const lifecycleSteps = ['建档', '首诊', '授权', '管理', '复诊', '结案']
 const currentProject = computed(() => specialProjects.value.find((item) => item.id === activeSpecialProjectId.value) || specialProjects.value[0])
+const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', followup: '复诊计划', training: '家庭训练计划' }[activeProjectSubPage.value] || '专案详情'))
+const reportImageStyle = computed(() => ({ width: (reportZoom.value * 100) + '%', transform: 'translate3d(' + reportImageX.value + 'px, ' + reportImageY.value + 'px, 0)' }))
 const currentStudent = computed(() => students.find((item) => item.id === selectedStudentId.value) || students[0])
 const editingStudent = computed(() => students.find((item) => item.id === editingStudentId.value) || currentStudent.value)
 const flatPaidProjects = computed(() => paidProjectGroups.flatMap((group) => group.projects.map((item) => ({ ...item, category: group.key, groupName: group.name }))))
@@ -520,30 +531,108 @@ function selectSpecialProject(id) {
   activeSpecialProjectId.value = id
   activeProjectPanel.value = 'flow'
   activeReportDoc.value = null
+  activeFlowNode.value = null
+  showProjectSheet.value = false
+}
+function resetReportViewer() {
+  reportZoom.value = 1
+  reportImageX.value = 0
+  reportImageY.value = 0
+  reportTouchState.mode = ''
 }
 function openReportDoc(item, type) {
   activeReportDoc.value = { ...item, type }
-  reportZoom.value = 1
+  resetReportViewer()
 }
 function closeReportDoc() {
   activeReportDoc.value = null
-  reportZoom.value = 1
+  resetReportViewer()
 }
-function zoomReport(delta) {
-  reportZoom.value = Math.min(3, Math.max(1, Number((reportZoom.value + delta).toFixed(2))))
+function touchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX
+  const dy = touches[0].clientY - touches[1].clientY
+  return Math.hypot(dx, dy)
 }
-function fitReport() {
-  reportZoom.value = 1
+function onReportTouchStart(event) {
+  if (event.touches.length === 2) {
+    reportTouchState.mode = 'pinch'
+    reportTouchState.distance = touchDistance(event.touches)
+    reportTouchState.scale = reportZoom.value
+    return
+  }
+  if (event.touches.length === 1 && reportZoom.value > 1) {
+    reportTouchState.mode = 'drag'
+    reportTouchState.startX = event.touches[0].clientX
+    reportTouchState.startY = event.touches[0].clientY
+    reportTouchState.imageX = reportImageX.value
+    reportTouchState.imageY = reportImageY.value
+  }
+}
+function onReportTouchMove(event) {
+  if (reportTouchState.mode === 'pinch' && event.touches.length === 2) {
+    const nextScale = reportTouchState.scale * (touchDistance(event.touches) / reportTouchState.distance)
+    reportZoom.value = Math.min(3, Math.max(1, Number(nextScale.toFixed(2))))
+    if (reportZoom.value === 1) {
+      reportImageX.value = 0
+      reportImageY.value = 0
+    }
+    return
+  }
+  if (reportTouchState.mode === 'drag' && event.touches.length === 1 && reportZoom.value > 1) {
+    reportImageX.value = reportTouchState.imageX + event.touches[0].clientX - reportTouchState.startX
+    reportImageY.value = reportTouchState.imageY + event.touches[0].clientY - reportTouchState.startY
+  }
+}
+function onReportTouchEnd(event) {
+  if (!event.touches.length) reportTouchState.mode = ''
 }
 function signCurrentProject() {
   currentProject.value.consent = true
   currentProject.value.status = '管理中'
   currentProject.value.progress = Math.max(currentProject.value.progress, 28)
+  currentProject.value.flow = currentProject.value.flow.map((item) => {
+    if (item.action === 'consent') return { ...item, state: 'completed', tip: '' }
+    if (item.state === 'not_started' && ['营养评估报告', '随访问卷', '家庭饮食记录'].includes(item.title)) return { ...item, state: item.title === '营养评估报告' ? 'current' : 'pending', tip: item.title === '营养评估报告' ? '待生成' : '待处理', action: item.title === '营养评估报告' ? 'report' : item.title === '随访问卷' ? 'questionnaire' : 'training' }
+    return item
+  })
 }
-function stepState(index) {
-  if (index < currentProject.value.currentStep) return 'done'
-  if (index === currentProject.value.currentStep) return 'current'
-  return 'todo'
+function canOpenFlowNode(item) {
+  return Boolean(item?.action && item.state !== 'not_started')
+}
+function openFlowNode(item) {
+  if (!canOpenFlowNode(item)) return
+  if (item.action === 'report') {
+    activeProjectPanel.value = 'report'
+    return
+  }
+  activeProjectSubPage.value = item.action
+  projectSubmitMessage.value = ''
+  page.value = 'projectSubPage'
+  activeTab.value = 'project'
+}
+function backToProjectFlow() {
+  projectSubmitMessage.value = ''
+  activeProjectPanel.value = 'flow'
+  setPrimaryPage('project')
+}
+function closeFlowNode() {
+  activeFlowNode.value = null
+}
+function flowActionLabel(item) {
+  const map = { profile: '查看儿童档案', questionnaire: '查看问卷', consent: currentProject.value.consent ? '查看知情同意书' : '去签署知情同意书', followup: '查看复诊计划', training: '查看家庭训练记录' }
+  return map[item?.action] || '查看详情'
+}
+function submitProjectSubPage() {
+  if (activeProjectSubPage.value === 'consent' && !currentProject.value.consent) signCurrentProject()
+  projectSubmitMessage.value = ({ profile: '建档信息已保存', questionnaire: '首诊问卷已提交', consent: currentProject.value.consent ? '知情同意书已确认' : '知情同意书已签署', followup: '复诊计划已确认', training: '训练记录已提交' }[activeProjectSubPage.value] || '已提交')
+}
+function confirmFlowNodeAction() {
+  if (activeFlowNode.value?.action === 'consent' && !currentProject.value.consent) {
+    signCurrentProject()
+    closeFlowNode()
+    return
+  }
+  closeFlowNode()
 }
 function questionnaireStatusClass(status) { if (status === '已提交') return 'done'; if (status === '填写中') return 'progressing'; if (status === '已过期') return 'expired'; return 'todo' }
 function questionnaireActionLabel(status) { if (status === '已提交') return '查看结果'; if (status === '填写中') return '继续填写'; return '立即填写' }
@@ -807,14 +896,8 @@ onBeforeUnmount(() => {
         <section v-else-if="page === 'project'" class="screen project-screen">
           <article class="project-child-card">
             <strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong>
-            <em>已参与 {{ specialProjects.length }} 个专案</em>
+            <button class="project-sheet-entry" type="button" @click="showProjectSheet = true">已参与 {{ specialProjects.length }} 个专案 <b>›</b></button>
           </article>
-
-          <section class="project-switcher">
-            <button v-for="item in specialProjects" :key="item.id" :class="{ active: item.id === currentProject.id }" type="button" @click="selectSpecialProject(item.id)">
-              <div><strong>{{ item.name }}</strong><small>{{ item.type }}｜{{ item.status }}</small></div>
-            </button>
-          </section>
 
           <article class="project-status-card current-project-card">
             <div class="project-detail-main">
@@ -822,10 +905,7 @@ onBeforeUnmount(() => {
               <p>{{ currentProject.specialty }}｜主治医生：{{ currentProject.doctor }}｜开始：{{ currentProject.startDate }}</p>
               <p v-if="!currentProject.consent" class="consent-inline">知情同意未签署</p>
             </div>
-            <section class="lifecycle-card">
-              <div v-for="(step, index) in lifecycleSteps" :key="step" :class="['life-step', stepState(index)]"><i></i><span>{{ step }}</span></div>
-            </section>
-          </article>
+</article>
 
           <article v-if="!currentProject.consent" class="project-lock-tip">
             <strong>该专案尚未签署知情同意书</strong>
@@ -840,15 +920,20 @@ onBeforeUnmount(() => {
           </div>
 
           <template v-if="activeProjectPanel === 'flow'">
-            <section class="flow-timeline"><article v-for="item in currentProject.flow" :key="item.title" class="flow-row"><i></i><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span>{{ item.status }}</span></article></section>
+            <section class="flow-timeline"><button v-for="item in currentProject.flow" :key="item.title" :class="['flow-row', item.state, { clickable: canOpenFlowNode(item) }]" type="button" :disabled="!canOpenFlowNode(item)" @click="openFlowNode(item)"><i></i><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span v-if="item.tip" class="flow-tip">{{ item.tip }}</span><b v-if="canOpenFlowNode(item)">›</b></button></section>
           </template>
 
           <template v-else-if="activeProjectPanel === 'report'">
             <article v-if="!currentProject.consent" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="signCurrentProject">去签署</button></article>
             <template v-else>
-              <article class="report-card project-report-card"><div class="section-head"><strong>专科诊疗报告</strong><small>{{ currentProject.report.time }}</small></div><p>{{ currentProject.report.conclusion }}</p><div class="problem-tags"><span v-for="item in currentProject.report.problems" :key="item">{{ item }}</span></div><div class="doctor-advice">{{ currentProject.report.advice }}</div></article>
-              <section class="archive-section"><div class="archive-head"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span></div><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'lis')">图文报告 &gt;</button></div><p>检查日期：{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></section>
-              <section class="archive-section"><div class="archive-head"><strong>PACS 检查报告归档</strong><span>共 {{ currentProject.report.pacs.length }} 份</span></div><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'pacs')">图文报告 &gt;</button></div><p>检查日期：{{ item.date }}</p><p>检查部位：{{ item.part }}</p><small>诊断摘要：{{ item.summary }}</small></div></article></section>
+              <section class="archive-section archive-collapsible">
+                <div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div>
+                <template v-if="lisArchiveExpanded"><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'lis')">图文报告 &gt;</button></div><p>检查日期：{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></template>
+              </section>
+              <section class="archive-section archive-collapsible">
+                <div class="archive-head signup-section-title"><strong>PACS 检查报告归档</strong><span>共 {{ currentProject.report.pacs.length }} 份</span><button type="button" @click="pacsArchiveExpanded = !pacsArchiveExpanded">{{ pacsArchiveExpanded ? '收起' : '展开' }}</button></div>
+                <template v-if="pacsArchiveExpanded"><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'pacs')">图文报告 &gt;</button></div><p>检查日期：{{ item.date }}</p><p>检查部位：{{ item.part }}</p><small>诊断摘要：{{ item.summary }}</small></div></article></template>
+              </section>
               <section class="trend-grid project-trend-grid"><article v-for="item in currentProject.report.trends" :key="item.name" class="trend-card"><div><strong>{{ item.name }}</strong><span>趋势</span></div><b>{{ item.value }}</b><svg viewBox="0 0 120 44" preserveAspectRatio="none"><polyline :points="item.data.map((v, i) => `${i * 40},${44 - v / 2}`).join(' ')" /></svg></article></section>
             </template>
           </template>
@@ -857,6 +942,51 @@ onBeforeUnmount(() => {
             <article v-if="!currentProject.consent" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看医生指导、随访问卷和家庭训练记录。</p><button type="button" @click="signCurrentProject">去签署</button></article>
             <template v-else><article v-for="item in currentProject.services" :key="item.title" class="service-row project-service-row"><b>{{ item.icon }}</b><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span>进入</span></article><article class="message-card project-message-card"><strong>在线互动</strong><p v-for="item in projectMessages" :key="item.text"><b>{{ item.from }}：</b>{{ item.text }}</p></article></template>
           </template>
+        </section>
+        <section v-else-if="page === 'projectSubPage'" class="screen project-subpage-screen">
+          <div class="page-title project-subpage-title"><button type="button" @click="backToProjectFlow"><el-icon><ArrowLeft /></el-icon></button><h2>{{ projectSubPageTitle }}</h2><span class="top-placeholder"></span></div>
+          <article class="project-sub-summary">
+            <strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong>
+            <p>{{ currentProject.name }}</p>
+            <small>当前阶段：{{ projectSubPageTitle }}</small>
+          </article>
+
+          <template v-if="activeProjectSubPage === 'profile'">
+            <section class="sub-section"><h3>基本信息</h3><div class="sub-form-grid"><label>姓名<input :value="currentStudent.name" readonly /></label><label>性别<input :value="currentStudent.gender" readonly /></label><label>年龄<input :value="currentStudent.age + '岁'" readonly /></label><label>身份证号/学籍号<input value="110101201604180018" readonly /></label><label>学校<input :value="currentStudent.school" readonly /></label><label>班级<input :value="currentStudent.className" readonly /></label></div></section>
+            <section class="sub-section"><h3>监护人信息</h3><div class="sub-form-grid"><label>监护人姓名<input :value="parentProfile.name" readonly /></label><label>手机号<input :value="parentProfile.phone" readonly /></label><label>与儿童关系<input :value="parentProfile.relation" readonly /></label></div></section>
+            <section class="sub-section"><h3>健康基础信息</h3><div class="sub-info-list"><p><em>过敏史</em><b>暂无明确药物过敏史</b></p><p><em>既往病史</em><b>无重大既往病史</b></p><p><em>家族史</em><b>父母一方近视</b></p><p><em>当前用药</em><b>无长期用药</b></p></div></section>
+            <section class="sub-section"><h3>视力专案信息</h3><div class="sub-chip-list"><span>偶尔佩戴框架眼镜</span><span>近一年做过眼科检查</span><span>最近一次提示远视储备不足</span></div></section>
+          </template>
+
+          <template v-else-if="activeProjectSubPage === 'questionnaire'">
+            <section class="sub-section questionnaire-progress"><div><strong>问卷进度 3/12</strong><p>根据儿童用眼习惯、视力表现和家庭近视情况完成首诊评估。</p></div><span>25%</span></section>
+            <section class="sub-section question-block"><h3>孩子每日近距离用眼时长？</h3><div class="sub-options"><span>1小时以内</span><span class="selected">1-2小时</span><span>2小时以上</span></div></section>
+            <section class="sub-section question-block"><h3>每日户外活动时长？</h3><div class="sub-options"><span>少于1小时</span><span class="selected">1-2小时</span><span>2小时以上</span></div></section>
+            <section class="sub-section question-block"><h3>近期视力表现</h3><div class="sub-check-list"><span>经常眯眼看远处</span><span>偶尔揉眼或眼干</span><span>已做过验光检查</span><span>父母一方近视</span></div><textarea placeholder="可补充孩子近期用眼情况"></textarea></section>
+          </template>
+
+          <template v-else-if="activeProjectSubPage === 'consent'">
+            <section class="sub-section consent-name"><strong>{{ currentProject.name }}知情同意书</strong><span :class="['consent-state', currentProject.consent ? 'done' : 'pending']">{{ currentProject.consent ? '已签署' : '待签署' }}</span></section>
+            <section v-if="currentProject.consent" class="sub-section signed-info"><p><em>签署时间</em><b>2026-04-02 10:18</b></p><p><em>签署人</em><b>{{ parentProfile.name }}</b></p></section>
+            <section class="sub-section consent-content"><h3>服务内容</h3><p>本专案将围绕儿童视力健康筛查、专科评估、随访管理和家庭干预进行连续健康管理。</p><h3>数据使用说明</h3><p>筛查和随访数据仅用于本次健康管理、医生评估和家长端报告展示。</p><h3>家长确认事项</h3><p>家长确认已了解服务边界，并配合完成问卷、复诊和家庭训练记录。</p><h3>风险与注意事项</h3><p>如儿童出现视力快速下降、眼痛等情况，应及时到医疗机构进一步检查。</p></section>
+            <label class="consent-check"><input type="checkbox" checked />我已阅读并理解以上内容</label>
+          </template>
+
+          <template v-else-if="activeProjectSubPage === 'followup'">
+            <section class="sub-section followup-ticket"><div><small>复诊时间</small><strong>2026-04-18 09:30</strong></div><span>待复诊</span></section>
+            <section class="sub-section sub-info-list"><p><em>复诊地点</em><b>眼保健专科门诊</b></p><p><em>复诊科室</em><b>{{ currentProject.specialty }}</b></p><p><em>主治医生</em><b>{{ currentProject.doctor }}</b></p></section>
+            <section class="sub-section"><h3>复诊项目</h3><div class="sub-chip-list"><span>视力复查</span><span>屈光检查</span><span>眼轴复测</span><span>用眼行为评估</span></div></section>
+            <section class="sub-section"><h3>注意事项</h3><ol class="sub-note-list"><li>请携带既往检查报告。</li><li>如需散瞳检查，请按医生要求准备。</li><li>建议家长陪同到诊。</li></ol><button class="ghost full" type="button">联系机构</button></section>
+          </template>
+
+          <template v-else-if="activeProjectSubPage === 'training'">
+            <section class="sub-section training-overview"><div><small>周期</small><strong>2026-04-15 至 2026-04-21</strong></div><span>待提交</span></section>
+            <section class="sub-task-list"><article><b>户外活动</b><p>每日不少于 2 小时，优先选择自然光环境。</p><em>未完成</em></article><article><b>远眺训练</b><p>每日 3 次，每次 5 分钟。</p><em>未完成</em></article><article><b>用眼间隔</b><p>近距离用眼 30 分钟后休息 10 分钟。</p><em>已完成</em></article><article><b>眼保健操</b><p>每日 1 次，注意动作规范。</p><em>未完成</em></article></section>
+            <section class="sub-section"><h3>家长记录</h3><div class="sub-options"><span class="selected">今日已完成</span><span>今日未完成</span></div><textarea placeholder="填写训练备注"></textarea><button class="upload-placeholder" type="button">+ 上传图片</button></section>
+          </template>
+
+          <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p>
+          <div class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">{{ activeProjectSubPage === 'profile' ? '提交建档信息' : activeProjectSubPage === 'questionnaire' ? '提交首诊问卷' : activeProjectSubPage === 'consent' ? (currentProject.consent ? '查看知情同意书' : '确认签署') : activeProjectSubPage === 'followup' ? '确认复诊计划' : '提交训练记录' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -1015,30 +1145,37 @@ onBeforeUnmount(() => {
           <button v-if="downloadStatus === 'error'" class="retry-download" type="button" @click="retryDownload">重新生成</button>
           <button class="cancel-download" type="button" :disabled="downloadGenerating" @click="showDownloadSheet = false">取消</button>
         </article>
-      </section>      <section v-if="showChildSheet" class="child-sheet-mask" @click.self="showChildSheet = false">
+      </section>
+            <section v-if="activeFlowNode" class="child-sheet-mask flow-node-mask" @click.self="closeFlowNode">
+        <article class="child-sheet flow-node-sheet">
+          <header><strong>{{ activeFlowNode.title }}</strong><button type="button" @click="closeFlowNode">×</button></header>
+          <p>{{ activeFlowNode.desc }}</p>
+          <button class="primary full" type="button" @click="confirmFlowNodeAction">{{ flowActionLabel(activeFlowNode) }}</button>
+        </article>
+      </section>
+      <section v-if="showProjectSheet" class="child-sheet-mask project-sheet-mask" @click.self="showProjectSheet = false">
+        <article class="child-sheet project-select-sheet">
+          <header><strong>选择专案</strong><button type="button" @click="showProjectSheet = false">×</button></header>
+          <div class="project-option-list">
+            <button v-for="item in specialProjects" :key="item.id" :class="['project-option', { active: item.id === currentProject.id }]" type="button" @click="selectSpecialProject(item.id)">
+              <i>{{ item.id === currentProject.id ? '✓' : '' }}</i>
+              <span><b>{{ item.name }}</b><small>{{ item.type }}｜{{ item.status }}</small></span>
+              <em>{{ item.status }}</em>
+            </button>
+          </div>
+        </article>
+      </section>
+      <section v-if="showChildSheet" class="child-sheet-mask" @click.self="showChildSheet = false">
         <article class="child-sheet">
           <header><strong>选择就诊人</strong><button type="button" @click="showChildSheet = false">×</button></header>
           <button v-for="item in students" :key="item.id" type="button" class="child-option" @click="switchStudent(item.id)"><span><b>{{ item.name }}｜{{ item.className }}</b><small>{{ item.id === selectedStudentId ? '当前' : '点击切换' }}</small></span><em v-if="item.id === selectedStudentId">当前</em></button>
           <button class="add-child" type="button" @click.stop.prevent="openStudentsManager()">+ 添加就诊人</button>
         </article>
       </section>
-      <section v-if="activeReportDoc" class="report-doc-overlay">
-        <header class="report-doc-top page-title">
-          <button type="button" @click="closeReportDoc"><el-icon><ArrowLeft /></el-icon></button>
-          <h2>图文报告</h2>
-          <span class="top-placeholder"></span>
-        </header>
-        <section class="report-doc-info">
-          <strong>{{ activeReportDoc.name }}</strong>
-          <p>{{ activeReportDoc.type === 'lis' ? 'LIS 化验单' : 'PACS 检查报告' }}｜{{ activeReportDoc.date }}</p>
-        </section>
-        <section class="report-doc-tools" aria-label="报告查看工具栏">
-          <button type="button" :disabled="reportZoom <= 1" @click="zoomReport(-0.25)">缩小</button>
-          <button type="button" :disabled="reportZoom >= 3" @click="zoomReport(0.25)">放大</button>
-          <button type="button" @click="fitReport">适应屏幕</button>
-        </section>
-        <section class="report-doc-stage">
-          <img :src="activeReportDoc.image" :alt="activeReportDoc.name" :style="{ width: (reportZoom * 100) + '%' }" />
+      <section v-if="activeReportDoc" class="report-image-viewer" @click.self="closeReportDoc">
+        <button class="viewer-close" type="button" aria-label="关闭图文报告" @click="closeReportDoc"><el-icon><ArrowLeft /></el-icon></button>
+        <section class="viewer-image-stage" @touchstart="onReportTouchStart" @touchmove.prevent="onReportTouchMove" @touchend="onReportTouchEnd" @touchcancel="onReportTouchEnd">
+          <img :src="activeReportDoc.image" :alt="activeReportDoc.name" :style="reportImageStyle" />
         </section>
       </section>
       <nav v-if="isLoggedIn && !activeReportDoc" class="bottom-tabs">
@@ -1739,12 +1876,121 @@ onBeforeUnmount(() => {
 .phone-content{height:calc(100% - 120px)!important;padding-bottom:calc(30px + env(safe-area-inset-bottom))!important}
 @media (hover:none) and (pointer:coarse), (max-width:768px){.phone-content{height:calc(100dvh - 120px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important}.bottom-tabs{height:66px!important}}
 @media(max-width:360px){.bottom-tabs button::before{width:64px!important;height:50px!important}}
-.project-screen{gap:10px!important;padding-bottom:12px}.project-screen .project-child-card{padding:13px 14px;border:0;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;align-items:center;justify-content:space-between;gap:10px}.project-screen .project-child-card strong{font-size:17px;margin:0;color:#20343A}.project-screen .project-child-card em{font-size:13px;color:#12A8AD;background:transparent;padding:0;font-style:normal;white-space:nowrap}.project-switcher{margin:0 -14px;padding:0 14px 2px;display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.project-switcher::-webkit-scrollbar{display:none}.project-switcher button{min-width:188px;padding:11px 12px;border:0;border-radius:12px;background:#fff;text-align:left;box-shadow:0 7px 18px rgba(28,91,92,.055)}.project-switcher button.active{background:#EFFBF8;box-shadow:inset 0 0 0 1px rgba(18,168,173,.28),0 8px 18px rgba(18,168,173,.08)}.project-switcher strong{display:block;color:#20343A;font-size:14px;line-height:1.35}.project-switcher small{display:block;margin-top:6px;color:#60757C;font-size:12px}.current-project-card{padding:14px;border:0;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:11px}.project-detail-main>strong{display:block;color:#20343A;font-size:17px;line-height:1.35}.project-detail-main>p{margin:6px 0 0;color:#60757C;font-size:13px;line-height:1.5}.project-detail-main .consent-inline{display:inline-flex;margin-top:9px;padding:5px 8px;border-radius:8px;background:#FFF7E8;color:#A66A12;font-size:12px;font-weight:700}.project-screen .lifecycle-card{padding:10px 6px;background:#F6FBFA;border:0;border-radius:10px;box-shadow:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}.life-step{min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:#9AA9AD;font-size:11px}.life-step i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#EEF3F2;color:transparent;position:relative;font-size:0}.life-step.done i::after{content:'✓';color:#12A8AD;font-size:11px}.life-step.current i{background:#12A8AD}.life-step.current i::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff}.life-step.todo i::after{content:'';width:5px;height:5px;border-radius:50%;background:#B8C4C5}.life-step span{white-space:nowrap}.project-lock-tip,.locked-card{padding:15px;border:0;border-radius:12px;background:#FFFAF2;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-lock-tip strong,.locked-card strong{font-size:15px;color:#20343A}.project-lock-tip p,.locked-card p{margin:6px 0 10px;color:#60757C;font-size:13px;line-height:1.55}.project-lock-tip button,.locked-card button{border:0;border-radius:10px;background:#12A8AD;color:#fff;padding:8px 12px;font-weight:700}.project-tabs{height:38px;display:grid;grid-template-columns:repeat(3,1fr);align-items:end;border-bottom:1px solid rgba(216,238,234,.72)}.project-tabs button{height:38px;border:0;background:transparent;color:#60757C;font-size:14px;font-weight:700;position:relative}.project-tabs button.active{color:#12A8AD}.project-tabs button.active::after{content:'';position:absolute;left:28%;right:28%;bottom:-1px;height:2px;border-radius:999px;background:#12A8AD}.flow-timeline{padding:4px 0 2px;background:#fff;border-radius:12px;box-shadow:0 8px 22px rgba(28,91,92,.055)}.flow-timeline .flow-row{position:relative;margin:0;padding:13px 13px 13px 35px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border:0;border-radius:0;box-shadow:none;background:transparent}.flow-timeline .flow-row+.flow-row{border-top:1px solid rgba(216,238,234,.58)}.flow-timeline .flow-row>i{position:absolute;left:15px;top:19px;width:8px;height:8px;border-radius:50%;background:#12A8AD;z-index:1}.flow-timeline .flow-row:not(:last-child)::after{content:'';position:absolute;left:18px;top:29px;bottom:-8px;width:1px;background:rgba(18,168,173,.18)}.flow-timeline .flow-row strong{font-size:15px;color:#20343A}.flow-timeline .flow-row p{margin-top:4px;color:#60757C}.flow-timeline .flow-row span{align-self:start;padding:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:700}.project-report-card,.archive-section,.project-trend-grid .trend-card,.project-service-row,.project-message-card{border:0;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-report-card{padding:14px}.problem-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.problem-tags span{padding:4px 8px;border-radius:999px;background:#FFF0E8;color:#C96D20;font-size:12px}.doctor-advice{margin-top:10px;padding:10px;border-radius:13px;background:#F3FAF8;color:#31565C;font-size:13px;line-height:1.55}.archive-section{padding:14px;display:flex;flex-direction:column;gap:0}.archive-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}.archive-head strong{font-size:16px;color:#20343A}.archive-head span{color:#8A9CA1;font-size:12px}.archive-card.compact{min-height:88px;padding:11px 12px;background:#fff;border:0;border-radius:10px;box-shadow:none;border-top:1px solid rgba(216,238,234,.62)}.archive-section .archive-card.compact:first-of-type{border-top:0}.archive-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.archive-title strong{min-width:0;color:#20343A;font-size:15px}.archive-title button{border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0;white-space:nowrap}.archive-card.compact p{margin:5px 0 0;color:#60757C;font-size:12px;line-height:1.4}.archive-card.compact small{display:block;margin-top:5px;color:#20343A;font-size:13px;line-height:1.45;font-weight:500}.project-trend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.project-trend-grid .trend-card{padding:12px}.trend-card div{display:flex;justify-content:space-between;gap:8px}.trend-card span{color:#8A9CA1;font-size:12px}.trend-card b{display:block;margin-top:8px;color:#20343A}.trend-card svg{width:100%;height:44px;margin-top:6px}.trend-card polyline{fill:none;stroke:#12A8AD;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.project-service-row{padding:12px;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}.project-service-row>b{width:34px;height:34px;border-radius:13px;background:#E4F8F6;color:#12A8AD;display:grid;place-items:center}.project-service-row p{margin-top:5px;color:#60757C;font-size:13px;line-height:1.55}.project-service-row span{color:#12A8AD;font-size:13px;font-weight:700}.project-message-card{padding:15px}.project-message-card p{padding:9px 0;border-top:1px solid rgba(216,238,234,.72);color:#60757C;font-size:13px;line-height:1.55}.report-doc-overlay{position:absolute;inset:54px 0 0;z-index:30;background:#F8FEFC;overflow:auto;padding:14px}.report-doc-page{min-height:100%;padding:14px;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);color:#20343A}.doc-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}.doc-title button{border:0;border-radius:8px;background:#EDF8F6;color:#12A8AD;padding:7px 9px;font-size:12px;font-weight:800}.doc-title strong{font-size:17px}.doc-title p{margin:3px 0 0;color:#60757C;font-size:12px}.report-doc-page img{width:100%;height:auto;border-radius:8px;background:#EEF3F2;display:block}
+.project-screen{gap:10px!important;padding-bottom:12px}.project-screen .project-child-card{padding:13px 14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;align-items:center;justify-content:space-between;gap:10px}.project-screen .project-child-card strong{font-size:17px;margin:0;color:#20343A}.project-screen .project-child-card em{font-size:13px;color:#12A8AD;background:transparent;padding:0;font-style:normal;white-space:nowrap}.project-switcher{margin:0 -14px;padding:0 14px 2px;display:flex;gap:9px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}.project-switcher::-webkit-scrollbar{display:none}.project-switcher button{min-width:188px;padding:11px 12px;border:0;border-radius:12px;background:#fff;text-align:left;box-shadow:0 7px 18px rgba(28,91,92,.055)}.project-switcher button.active{background:#EFFBF8;box-shadow:inset 0 0 0 1px rgba(18,168,173,.28),0 8px 18px rgba(18,168,173,.08)}.project-switcher strong{display:block;color:#20343A;font-size:14px;line-height:1.35}.project-switcher small{display:block;margin-top:6px;color:#60757C;font-size:12px}.current-project-card{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:11px}.project-detail-main>strong{display:block;color:#20343A;font-size:17px;line-height:1.35}.project-detail-main>p{margin:6px 0 0;color:#60757C;font-size:13px;line-height:1.5}.project-detail-main .consent-inline{display:inline-flex;margin-top:9px;padding:5px 8px;border-radius:8px;background:#FFF7E8;color:#A66A12;font-size:12px;font-weight:700}.project-screen .lifecycle-card{padding:10px 6px;background:#F6FBFA;border:0;border-radius:10px;box-shadow:none;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}.life-step{min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;color:#9AA9AD;font-size:11px}.life-step i{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;background:#EEF3F2;color:transparent;position:relative;font-size:0}.life-step.done i::after{content:'✓';color:#12A8AD;font-size:11px}.life-step.current i{background:#12A8AD}.life-step.current i::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff}.life-step.todo i::after{content:'';width:5px;height:5px;border-radius:50%;background:#B8C4C5}.life-step span{white-space:nowrap}.project-lock-tip,.locked-card{padding:15px;border:0;border-radius:8px;background:#FFFAF2;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-lock-tip strong,.locked-card strong{font-size:15px;color:#20343A}.project-lock-tip p,.locked-card p{margin:6px 0 10px;color:#60757C;font-size:13px;line-height:1.55}.project-lock-tip button,.locked-card button{border:0;border-radius:10px;background:#12A8AD;color:#fff;padding:8px 12px;font-weight:700}.project-tabs{height:38px;display:grid;grid-template-columns:repeat(3,1fr);align-items:end;border-bottom:1px solid rgba(216,238,234,.72)}.project-tabs button{height:38px;border:0;background:transparent;color:#60757C;font-size:14px;font-weight:700;position:relative}.project-tabs button.active{color:#12A8AD}.project-tabs button.active::after{content:'';position:absolute;left:28%;right:28%;bottom:-1px;height:2px;border-radius:999px;background:#12A8AD}.flow-timeline{padding:4px 0 2px;background:#fff;border-radius:8px;box-shadow:0 8px 22px rgba(28,91,92,.055)}.flow-timeline .flow-row{position:relative;margin:0;padding:13px 13px 13px 35px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border:0;border-radius:0;box-shadow:none;background:transparent}.flow-timeline .flow-row+.flow-row{border-top:1px solid rgba(216,238,234,.58)}.flow-timeline .flow-row>i{position:absolute;left:15px;top:19px;width:8px;height:8px;border-radius:50%;background:#12A8AD;z-index:1}.flow-timeline .flow-row:not(:last-child)::after{content:'';position:absolute;left:18px;top:29px;bottom:-8px;width:1px;background:rgba(18,168,173,.18)}.flow-timeline .flow-row strong{font-size:15px;color:#20343A}.flow-timeline .flow-row p{margin-top:4px;color:#60757C}.flow-timeline .flow-row span{align-self:start;padding:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:700}.project-report-card,.archive-section,.project-trend-grid .trend-card,.project-service-row,.project-message-card{border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-report-card{padding:14px}.problem-tags{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.problem-tags span{padding:4px 8px;border-radius:999px;background:#FFF0E8;color:#C96D20;font-size:12px}.doctor-advice{margin-top:10px;padding:10px;border-radius:13px;background:#F3FAF8;color:#31565C;font-size:13px;line-height:1.55}.archive-section{padding:14px;display:flex;flex-direction:column;gap:0}.archive-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}.archive-head strong{font-size:16px;color:#20343A}.archive-head span{color:#8A9CA1;font-size:12px}.archive-card.compact{min-height:88px;padding:11px 12px;background:#fff;border:0;border-radius:10px;box-shadow:none;border-top:1px solid rgba(216,238,234,.62)}.archive-section .archive-card.compact:first-of-type{border-top:0}.archive-title{display:flex;align-items:center;justify-content:space-between;gap:10px}.archive-title strong{min-width:0;color:#20343A;font-size:15px}.archive-title button{border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0;white-space:nowrap}.archive-card.compact p{margin:5px 0 0;color:#60757C;font-size:12px;line-height:1.4}.archive-card.compact small{display:block;margin-top:5px;color:#20343A;font-size:13px;line-height:1.45;font-weight:500}.project-trend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.project-trend-grid .trend-card{padding:12px}.trend-card div{display:flex;justify-content:space-between;gap:8px}.trend-card span{color:#8A9CA1;font-size:12px}.trend-card b{display:block;margin-top:8px;color:#20343A}.trend-card svg{width:100%;height:44px;margin-top:6px}.trend-card polyline{fill:none;stroke:#12A8AD;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.project-service-row{padding:12px;display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center}.project-service-row>b{width:34px;height:34px;border-radius:13px;background:#E4F8F6;color:#12A8AD;display:grid;place-items:center}.project-service-row p{margin-top:5px;color:#60757C;font-size:13px;line-height:1.55}.project-service-row span{color:#12A8AD;font-size:13px;font-weight:700}.project-message-card{padding:15px}.project-message-card p{padding:9px 0;border-top:1px solid rgba(216,238,234,.72);color:#60757C;font-size:13px;line-height:1.55}.report-doc-overlay{position:absolute;inset:54px 0 0;z-index:30;background:#F8FEFC;overflow:auto;padding:14px}.report-doc-page{min-height:100%;padding:14px;border-radius:12px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);color:#20343A}.doc-title{display:flex;align-items:center;gap:10px;margin-bottom:12px}.doc-title button{border:0;border-radius:8px;background:#EDF8F6;color:#12A8AD;padding:7px 9px;font-size:12px;font-weight:800}.doc-title strong{font-size:17px}.doc-title p{margin:3px 0 0;color:#60757C;font-size:12px}.report-doc-page img{width:100%;height:auto;border-radius:8px;background:#EEF3F2;display:block}
 /* report document viewer optimization */
 .report-doc-overlay{position:absolute!important;inset:54px 0 0!important;z-index:30!important;display:flex!important;flex-direction:column!important;background:#F8FEFC!important;padding:0!important;overflow:hidden!important;color:#20343A!important}.report-doc-top{height:52px!important;min-height:52px!important;padding:0 14px!important;display:grid!important;grid-template-columns:34px minmax(0,1fr) 34px!important;align-items:center!important;gap:10px!important;background:rgba(255,255,255,.96)!important;border-bottom:1px solid rgba(216,238,234,.78)!important;box-shadow:0 4px 14px rgba(32,52,58,.04)!important}.report-doc-top button{width:34px!important;height:34px!important;border:0!important;border-radius:50%!important;display:grid!important;place-items:center!important;background:#E4F8F6!important;color:#12A8AD!important;padding:0!important}.report-doc-top h2{margin:0!important;text-align:center!important;color:#20343A!important;font-size:17px!important;font-weight:800!important;line-height:1.2!important}.report-doc-info{padding:12px 16px 10px!important;background:#fff!important;border-bottom:1px solid rgba(216,238,234,.68)!important}.report-doc-info strong{display:block!important;color:#20343A!important;font-size:16px!important;line-height:1.35!important}.report-doc-info p{margin:4px 0 0!important;color:#60757C!important;font-size:12px!important;line-height:1.4!important}.report-doc-tools{height:48px!important;padding:8px 14px!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;background:#fff!important;border-bottom:1px solid rgba(216,238,234,.68)!important}.report-doc-tools button{height:32px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:13px!important;font-weight:800!important;box-shadow:none!important}.report-doc-tools button:disabled{opacity:.45!important;color:#8FA5AD!important;background:#F7FAFA!important}.report-doc-stage{flex:1!important;min-height:0!important;overflow:auto!important;padding:12px!important;background:#F1F5F5!important;text-align:center!important;overscroll-behavior:contain!important}.report-doc-stage img{display:block!important;min-width:100%!important;max-width:none!important;height:auto!important;margin:0 auto!important;border-radius:4px!important;background:#fff!important;box-shadow:0 8px 22px rgba(31,54,58,.12)!important;transform-origin:top center!important}.report-doc-stage::-webkit-scrollbar{width:5px;height:5px}.report-doc-stage::-webkit-scrollbar-track{background:transparent}.report-doc-stage::-webkit-scrollbar-thumb{background:rgba(96,117,124,.26);border-radius:999px}
 /* report document viewer secondary-page style alignment */
 .report-doc-overlay{inset:54px 0 0!important;background:linear-gradient(180deg,#E7F8F5 0%,#F8FEFC 100%)!important;padding:14px!important;gap:12px!important;overflow:hidden!important}.report-doc-top{height:auto!important;min-height:34px!important;padding:0!important;display:flex!important;grid-template-columns:none!important;align-items:center!important;justify-content:flex-start!important;gap:10px!important;background:transparent!important;border-bottom:0!important;box-shadow:none!important;flex:none!important}.report-doc-top button{width:28px!important;height:28px!important;border-radius:0!important;background:transparent!important;border:0!important;color:#20343A!important;box-shadow:none!important;padding:0!important;display:grid!important;place-items:center!important}.report-doc-top button .el-icon{font-size:18px!important;color:#20343A!important}.report-doc-top h2{margin:0!important;text-align:left!important;color:#20343A!important;font-size:20px!important;font-weight:800!important;line-height:28px!important}.report-doc-top .top-placeholder{display:none!important}.report-doc-info{padding:15px!important;background:#fff!important;border:1px solid rgba(216,238,234,.65)!important;border-radius:16px!important;box-shadow:0 10px 28px rgba(38,191,195,.08)!important;flex:none!important}.report-doc-info strong{font-size:16px!important;font-weight:800!important}.report-doc-info p{margin-top:6px!important;color:#60757C!important;font-size:13px!important}.report-doc-tools{height:auto!important;padding:12px!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;background:#fff!important;border:1px solid rgba(216,238,234,.65)!important;border-radius:16px!important;box-shadow:0 10px 28px rgba(38,191,195,.08)!important;flex:none!important}.report-doc-tools button{height:32px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:13px!important;font-weight:700!important}.report-doc-stage{flex:1!important;min-height:0!important;padding:10px!important;background:#fff!important;border:1px solid rgba(216,238,234,.65)!important;border-radius:16px!important;box-shadow:0 10px 28px rgba(38,191,195,.08)!important;overflow:auto!important;text-align:center!important}.report-doc-stage img{border-radius:6px!important;box-shadow:0 6px 18px rgba(31,54,58,.10)!important}
+/* fullscreen medical report image viewer */
+.report-image-viewer{position:absolute!important;inset:0!important;z-index:80!important;background:#101214!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}.viewer-close{position:absolute!important;left:12px!important;top:12px!important;z-index:3!important;width:36px!important;height:36px!important;border:0!important;border-radius:50%!important;background:rgba(255,255,255,.12)!important;color:#fff!important;display:grid!important;place-items:center!important;padding:0!important;backdrop-filter:blur(8px)!important}.viewer-close .el-icon{font-size:20px!important;color:#fff!important}.viewer-image-stage{position:absolute!important;inset:0!important;overflow:auto!important;display:block!important;padding:60px 10px 24px!important;text-align:center!important;touch-action:none!important;overscroll-behavior:contain!important}.viewer-image-stage img{display:block!important;min-width:100%!important;max-width:none!important;height:auto!important;margin:0 auto!important;border-radius:2px!important;background:#fff!important;box-shadow:0 12px 34px rgba(0,0,0,.36)!important;transform-origin:center top!important;will-change:transform,width!important;user-select:none!important;-webkit-user-drag:none!important}.viewer-image-stage::-webkit-scrollbar{width:4px;height:4px}.viewer-image-stage::-webkit-scrollbar-track{background:transparent}.viewer-image-stage::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:999px}.report-image-viewer .report-doc-top,.report-image-viewer .report-doc-info,.report-image-viewer .report-doc-tools,.report-image-viewer .report-doc-stage{display:none!important}
+/* project report archive collapsible groups */
+.project-screen .archive-collapsible{padding:14px!important;gap:0!important}.project-screen .archive-collapsible .archive-head{min-height:30px!important;margin:0!important;padding:0 0 8px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center!important;gap:8px!important;border-bottom:0!important}.project-screen .archive-collapsible .archive-head strong{min-width:0;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.project-screen .archive-collapsible .archive-head span{color:#9AADB2!important;font-size:12px!important;font-weight:500!important;white-space:nowrap!important}.project-screen .archive-collapsible .archive-head button{height:28px!important;padding:0 10px!important;border:1px solid rgba(216,238,234,.85)!important;border-radius:999px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:12px!important;font-weight:700!important;box-shadow:none!important;white-space:nowrap!important}.project-screen .archive-collapsible .archive-card.compact{border-top:1px solid rgba(216,238,234,.62)!important}.project-screen .archive-collapsible .archive-head + .archive-card.compact,.project-screen .archive-collapsible .archive-head + template + .archive-card.compact{border-top:0!important}.project-screen .project-report-card{display:none!important}
+.project-screen .project-child-card{min-height:54px!important;padding:12px 14px!important}
+.project-sheet-entry{flex:none;border:0!important;background:transparent!important;color:var(--primary-dark,#12A8AD)!important;padding:0!important;font-size:13px!important;font-weight:800!important;white-space:nowrap;display:inline-flex;align-items:center;gap:3px;box-shadow:none!important}
+.project-sheet-entry b{font-size:18px;line-height:1;font-weight:800;color:inherit}
+.project-screen .project-switcher{display:none!important}
+.project-sheet-mask{z-index:62!important}
+.project-select-sheet{max-height:46vh!important;padding:16px 16px 18px!important;border-radius:22px 22px 0 0!important;background:#fff!important;overflow:hidden!important}
+.project-select-sheet header{margin-bottom:6px!important}
+.project-select-sheet header strong{font-size:18px!important;color:var(--text-title,#20343A)!important}
+.project-option-list{max-height:calc(46vh - 64px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.project-option{width:100%;min-height:62px;padding:9px 0;border:0;border-top:1px solid rgba(216,238,234,.72);background:transparent;display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:10px;text-align:left}
+.project-option:first-child{border-top:0}
+.project-option i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--primary-dark,#12A8AD);font-size:14px;font-style:normal;font-weight:900}
+.project-option span{min-width:0;display:flex;flex-direction:column;gap:4px}
+.project-option b{color:var(--text-title,#20343A);font-size:15px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.project-option small{color:var(--text-main,#60757C);font-size:12px;line-height:1.25}
+.project-option em{padding:3px 8px;border-radius:999px;background:var(--primary-tint,#F0FCFA);color:var(--primary-dark,#12A8AD);font-size:12px;font-style:normal;font-weight:800;white-space:nowrap}
+.project-option.active{background:linear-gradient(90deg,rgba(228,248,246,.86),rgba(255,255,255,0));color:var(--primary-dark,#12A8AD)}
+.project-option.active b{color:var(--primary-dark,#12A8AD)}
+/* project flow timeline optimization */
+.project-screen .current-project-card{gap:0!important}
+.project-screen .lifecycle-card{display:none!important}
+.project-screen .flow-timeline{padding:0!important;background:#fff!important;border-radius:8px!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important;overflow:hidden!important}
+.project-screen .flow-timeline .flow-row{width:100%!important;min-height:64px!important;margin:0!important;padding:12px 34px 12px 38px!important;border:0!important;border-top:1px solid rgba(216,238,234,.58)!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto auto!important;align-items:center!important;gap:8px!important;text-align:left!important;color:inherit!important;font:inherit!important;appearance:none!important}
+.project-screen .flow-timeline .flow-row:first-child{border-top:0!important}
+.project-screen .flow-timeline .flow-row:disabled{opacity:1!important;cursor:default!important}
+.project-screen .flow-timeline .flow-row>i{position:absolute!important;left:16px!important;top:22px!important;width:9px!important;height:9px!important;border-radius:50%!important;background:#B8C4C5!important;z-index:1!important;box-shadow:0 0 0 4px #fff!important}
+.project-screen .flow-timeline .flow-row.completed>i{background:#12A8AD!important}
+.project-screen .flow-timeline .flow-row.current>i{background:#fff!important;border:2px solid #12A8AD!important;box-shadow:0 0 0 4px rgba(18,168,173,.13)!important}
+.project-screen .flow-timeline .flow-row.pending>i{background:#F2994A!important}
+.project-screen .flow-timeline .flow-row.not_started>i{background:#C7D2D4!important}
+.project-screen .flow-timeline .flow-row:not(:last-child)::after{content:''!important;position:absolute!important;left:20px!important;top:33px!important;bottom:-12px!important;width:1px!important;background:rgba(18,168,173,.16)!important}
+.project-screen .flow-timeline .flow-row.not_started:not(:last-child)::after{background:rgba(184,196,197,.42)!important}
+.project-screen .flow-timeline .flow-row strong{display:block!important;color:#20343A!important;font-size:15px!important;font-weight:800!important;line-height:1.35!important}
+.project-screen .flow-timeline .flow-row p{margin:4px 0 0!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
+.project-screen .flow-timeline .flow-row.not_started strong,.project-screen .flow-timeline .flow-row.not_started p{color:#9AADB2!important}
+.project-screen .flow-timeline .flow-tip{align-self:center!important;padding:0!important;background:transparent!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+.project-screen .flow-timeline .flow-row>b{position:absolute!important;right:13px!important;top:50%!important;transform:translateY(-50%)!important;color:#12A8AD!important;font-size:18px!important;line-height:1!important;font-weight:800!important}
+.project-screen .flow-timeline .flow-row.clickable:active{background:#F8FEFC!important}
+.flow-node-mask{z-index:63!important}
+.flow-node-sheet{display:flex!important;flex-direction:column!important;gap:12px!important;padding:16px 16px 18px!important}
+.flow-node-sheet p{margin:0!important;color:#60757C!important;font-size:14px!important;line-height:1.6!important}
+/* project secondary pages */
+.project-subpage-screen{gap:10px!important;padding-bottom:86px!important;background:transparent!important}
+.project-subpage-title{height:34px!important;display:grid!important;grid-template-columns:34px minmax(0,1fr) 34px!important;align-items:center!important;gap:8px!important}
+.project-subpage-title h2{margin:0!important;text-align:center!important;color:#20343A!important;font-size:18px!important;font-weight:800!important}
+.project-sub-summary,.sub-section,.sub-task-list article{background:#fff!important;border:1px solid rgba(216,238,234,.72)!important;border-radius:8px!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}
+.project-sub-summary{padding:13px 14px!important;display:flex!important;flex-direction:column!important;gap:5px!important}
+.project-sub-summary strong{color:#20343A!important;font-size:16px!important;line-height:1.35!important}
+.project-sub-summary p{color:#60757C!important;font-size:13px!important;line-height:1.45!important}
+.project-sub-summary small{color:#12A8AD!important;font-size:12px!important;font-weight:800!important}
+.sub-section{padding:14px!important;display:flex!important;flex-direction:column!important;gap:10px!important}
+.sub-section h3{margin:0!important;color:#20343A!important;font-size:15px!important;font-weight:800!important;line-height:1.35!important}
+.sub-form-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.sub-form-grid label{min-width:0!important;color:#8A9CA1!important;font-size:12px!important;display:flex!important;flex-direction:column!important;gap:5px!important}
+.sub-form-grid input,.project-subpage-screen textarea{width:100%!important;min-width:0!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:8px!important;background:#FAFEFD!important;color:#20343A!important;font-size:13px!important;box-shadow:none!important}
+.sub-form-grid input{height:36px!important;padding:0 10px!important}
+.project-subpage-screen textarea{min-height:74px!important;padding:10px!important;resize:none!important}
+.sub-info-list{gap:0!important}
+.sub-info-list p,.signed-info p{margin:0!important;padding:9px 0!important;border-top:1px solid rgba(216,238,234,.62)!important;display:flex!important;align-items:flex-start!important;justify-content:space-between!important;gap:12px!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
+.sub-info-list p:first-child,.signed-info p:first-child{border-top:0!important}
+.sub-info-list em,.signed-info em{font-style:normal!important;color:#9AADB2!important;white-space:nowrap!important}
+.sub-info-list b,.signed-info b{font-weight:700!important;color:#20343A!important;text-align:right!important}
+.sub-chip-list,.sub-options,.sub-check-list{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
+.sub-chip-list span,.sub-options span,.sub-check-list span{min-height:28px!important;padding:6px 9px!important;border-radius:8px!important;background:#F0FCFA!important;color:#42636B!important;border:1px solid rgba(216,238,234,.82)!important;font-size:12px!important;font-weight:700!important;line-height:1.25!important}
+.sub-options span.selected{background:#E4F8F6!important;border-color:#12A8AD!important;color:#12A8AD!important}
+.questionnaire-progress,.followup-ticket,.training-overview,.consent-name{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:12px!important}
+.questionnaire-progress strong,.followup-ticket strong,.training-overview strong,.consent-name strong{font-size:16px!important;color:#20343A!important;line-height:1.35!important}
+.questionnaire-progress p{margin-top:4px!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
+.questionnaire-progress span,.followup-ticket span,.training-overview span,.consent-state{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+.consent-state.done{background:#E8F8F1!important;color:#18B884!important}
+.consent-content{max-height:300px!important;overflow:auto!important;-webkit-overflow-scrolling:touch!important}
+.consent-content p{margin:0 0 4px!important;color:#60757C!important;font-size:13px!important;line-height:1.65!important}
+.consent-check{display:flex!important;align-items:center!important;gap:8px!important;padding:0 2px!important;color:#60757C!important;font-size:13px!important}
+.consent-check input{width:16px!important;height:16px!important;padding:0!important;accent-color:#12A8AD!important}
+.sub-note-list{margin:0!important;padding-left:18px!important;color:#60757C!important;font-size:13px!important;line-height:1.7!important}
+.sub-task-list{display:flex!important;flex-direction:column!important;gap:9px!important}
+.sub-task-list article{min-height:64px!important;padding:12px 13px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 10px!important;align-items:center!important}
+.sub-task-list b{color:#20343A!important;font-size:15px!important;line-height:1.35!important}
+.sub-task-list p{grid-column:1/2!important;margin:0!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
+.sub-task-list em{grid-column:2/3!important;grid-row:1/3!important;font-style:normal!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}
+.upload-placeholder{height:36px!important;border:1px dashed rgba(18,168,173,.45)!important;border-radius:8px!important;background:#F8FEFC!important;color:#12A8AD!important;font-weight:800!important}
+.project-submit-tip{margin:0!important;padding:8px 10px!important;border-radius:8px!important;background:#E8F8F1!important;color:#18B884!important;font-size:13px!important;font-weight:800!important;text-align:center!important}
+.project-sub-bottom{position:absolute!important;left:14px!important;right:14px!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;z-index:12!important;padding:10px!important;border-radius:12px!important;background:rgba(255,255,255,.96)!important;box-shadow:0 -8px 24px rgba(32,52,58,.12)!important}
+.project-sub-bottom .primary{height:42px!important;border-radius:10px!important}
+@media(max-width:360px){.sub-form-grid{grid-template-columns:1fr!important}.questionnaire-progress,.followup-ticket,.training-overview,.consent-name{align-items:flex-start!important;flex-direction:column!important}.project-sub-bottom{left:12px!important;right:12px!important}}
+.phone-shell:has(.project-subpage-screen) .bottom-tabs{display:none!important}.phone-shell:has(.project-subpage-screen) .phone-content{height:calc(100% - 54px)!important;padding-bottom:112px!important}
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
