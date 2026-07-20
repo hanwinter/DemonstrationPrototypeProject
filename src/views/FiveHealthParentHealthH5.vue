@@ -59,10 +59,11 @@ const projectQuestionnaireStatus = ref('editing')
 const consentSigned = ref(false)
 const consentConfirmed = ref(false)
 const projectProfileStatus = ref('saved')
+const projectSubPageReturnPanel = ref('flow')
 const activeReportDoc = ref(null)
-const lisArchiveExpanded = ref(true)
+const lisArchiveExpanded = ref(false)
 const pacsArchiveExpanded = ref(false)
-const specialtyReportExpanded = ref(['core', 'diagnosis', 'intervention', 'followup'])
+const specialtyReportExpanded = ref([])
 const rehabAppointments = reactive([
   { time: '04月16日 周二 16:30', item: '视觉训练｜李老师', status: '已预约', action: '变更预约' },
   { time: '04月19日 周五 16:30', item: '视觉训练｜李老师', status: '待确认', action: '确认预约' },
@@ -331,7 +332,7 @@ const specialProjects = ref([
     flow: [
       { title: '专科诊疗报告', desc: '儿童眼保健专科报告已生成', state: 'completed', action: 'report' },
       { title: '复诊计划', desc: '2026-04-18 09:30 待复诊', state: 'current', tip: '待复诊', action: 'followup' },
-      { title: '家庭训练记录', desc: '本周视觉训练记录待提交', state: 'pending', tip: '待提交', action: 'training' },
+      { title: '家庭训练记录', desc: '本周视觉训练记录待提交', state: 'pending', tip: '待提交', action: 'familyTrainingRecord' },
       { title: '结案评估', desc: '完成阶段评估后结案', state: 'not_started' },
     ],
     report: {
@@ -373,7 +374,7 @@ const specialProjects = ref([
 ])
 
 const currentProject = computed(() => specialProjects.value.find((item) => item.id === activeSpecialProjectId.value) || specialProjects.value[0])
-const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', specialtyReport: '专科诊疗报告', followup: '复诊计划', training: '家庭训练计划', parentManual: '家长手册', onlineInteraction: '在线互动', followSurvey: '随访问卷', familyTrainingRecord: '家庭训练记录' }[activeProjectSubPage.value] || '专案详情'))
+const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', specialtyReport: '专科诊疗报告', followup: '复诊计划', parentManual: '家长手册', onlineInteraction: '在线互动', followSurvey: '随访问卷', familyTrainingRecord: '家庭训练记录' }[activeProjectSubPage.value] || '专案详情'))
 const projectProfileStatusText = computed(() => ({ saved: '已保存未提交', editing: '编辑中', submitted: '已提交' }[projectProfileStatus.value] || '已保存未提交'))
 const projectQuestionnaireStatusText = computed(() => ({ editing: '填写中', saved: '已保存未提交', submitted: '已提交' }[projectQuestionnaireStatus.value] || '填写中'))
 const isProjectProfileEditing = computed(() => activeProjectSubPage.value === 'profile' && projectProfileStatus.value === 'editing')
@@ -570,6 +571,9 @@ function viewSpecialtyReport() {
   page.value = 'projectSubPage'
   projectSubmitMessage.value = ''
   projectArchiveToast.value = ''
+  specialtyReportExpanded.value = []
+  lisArchiveExpanded.value = false
+  pacsArchiveExpanded.value = false
 }
 function toggleSpecialtyReportGroup(key) {
   specialtyReportExpanded.value = specialtyReportExpanded.value.includes(key) ? specialtyReportExpanded.value.filter((item) => item !== key) : [...specialtyReportExpanded.value, key]
@@ -662,7 +666,7 @@ function signCurrentProject() {
     status: project.status === '待签署' ? '管理中' : project.status,
     progress: Math.max(project.progress, 28),
     flow: project.flow.map((item) => {
-      if (item.state === 'not_started' && ['营养评估报告', '随访问卷', '家庭饮食记录'].includes(item.title)) return { ...item, state: item.title === '营养评估报告' ? 'current' : 'pending', tip: item.title === '营养评估报告' ? '待生成' : '待处理', action: item.title === '营养评估报告' ? 'report' : item.title === '随访问卷' ? 'questionnaire' : 'training' }
+      if (item.state === 'not_started' && ['营养评估报告', '随访问卷', '家庭饮食记录'].includes(item.title)) return { ...item, state: item.title === '营养评估报告' ? 'current' : 'pending', tip: item.title === '营养评估报告' ? '待生成' : '待处理', action: item.title === '营养评估报告' ? 'report' : item.title === '随访问卷' ? 'questionnaire' : 'familyTrainingRecord' }
       return item
     }),
   }))
@@ -686,7 +690,8 @@ function openFlowNode(item) {
     viewSpecialtyReport()
     return
   }
-  activeProjectSubPage.value = item.action
+  activeProjectSubPage.value = item.action === 'training' ? 'familyTrainingRecord' : item.action
+  projectSubPageReturnPanel.value = 'flow'
   projectSubmitMessage.value = ''
   page.value = 'projectSubPage'
   activeTab.value = 'project'
@@ -701,6 +706,7 @@ function openProjectPrepPage(target) {
 }
 function openFamilyServicePage(target) {
   activeProjectSubPage.value = target
+  projectSubPageReturnPanel.value = 'service'
   activeProjectPanel.value = 'service'
   activeTab.value = 'project'
   page.value = 'projectSubPage'
@@ -710,7 +716,7 @@ function openFamilyServicePage(target) {
 function backToProjectFlow() {
   projectSubmitMessage.value = ''
   if (familyServicePages.includes(activeProjectSubPage.value)) {
-    activeProjectPanel.value = 'service'
+    activeProjectPanel.value = projectSubPageReturnPanel.value
     setPrimaryPage('project')
     return
   }
@@ -721,7 +727,7 @@ function closeFlowNode() {
   activeFlowNode.value = null
 }
 function flowActionLabel(item) {
-  const map = { profile: '查看儿童档案', questionnaire: '查看问卷', consent: consentSigned.value ? '查看知情同意书' : '去签署知情同意书', followup: '查看复诊计划', training: '查看家庭训练记录' }
+  const map = { profile: '查看儿童档案', questionnaire: '查看问卷', consent: consentSigned.value ? '查看知情同意书' : '去签署知情同意书', followup: '查看复诊计划', training: '查看家庭训练记录', familyTrainingRecord: '查看家庭训练记录' }
   return map[item?.action] || '查看详情'
 }
 function editProjectProfile() {
@@ -752,7 +758,7 @@ function submitProjectSubPage() {
     else backToProjectFlow()
     return
   }
-  projectSubmitMessage.value = ({ profile: '建档信息已保存', questionnaire: '首诊问卷已提交', followup: '复诊计划已确认', training: '训练记录已提交' }[activeProjectSubPage.value] || '已提交')
+  projectSubmitMessage.value = ({ profile: '建档信息已保存', questionnaire: '首诊问卷已提交', followup: '复诊计划已确认' }[activeProjectSubPage.value] || '已提交')
 }
 function openBaselineQuestionnaire() {
   activeProjectSubPage.value = 'questionnaire'
@@ -1177,11 +1183,6 @@ onBeforeUnmount(() => {
             <section class="sub-section followup-notes"><h3>注意事项</h3><ol class="sub-note-list"><li>请携带既往检查报告。</li><li>如需散瞳检查，请按医生要求准备。</li><li>建议家长陪同到诊。</li></ol></section>
           </template>
 
-          <template v-else-if="activeProjectSubPage === 'training'">
-            <section class="sub-section training-overview training-notice-time"><small>训练周期</small><div><strong>2026-04-15 至 2026-04-21</strong><span>待提交</span></div></section>
-            <section class="sub-section training-task-card"><h3>本周训练任务</h3><div class="training-task-list"><article><div><b>户外活动</b><em class="pending">未完成</em></div><p>每日不少于 2 小时，优先选择自然光环境。</p></article><article><div><b>远眺训练</b><em class="pending">未完成</em></div><p>每日 3 次，每次 5 分钟。</p></article><article><div><b>用眼间隔</b><em class="done">已完成</em></div><p>近距离用眼 30 分钟后休息 10 分钟。</p></article><article><div><b>眼保健操</b><em class="pending">未完成</em></div><p>每日 1 次，注意动作规范。</p></article></div></section>
-            <section class="sub-section training-record-card"><h3>家长记录</h3><div class="sub-options"><span class="selected">今日已完成</span><span>今日未完成</span></div><textarea placeholder="填写训练备注"></textarea><button class="upload-placeholder" type="button">+ 上传图片</button></section>
-          </template>
           <template v-else-if="activeProjectSubPage === 'parentManual'">
             <section class="family-sub-list"><article v-for="item in parentManuals" :key="item.title" class="manual-row"><div><strong>{{ item.title }}</strong><p>{{ item.source }}｜{{ item.date }}</p></div><span :class="{ pending: item.status === '未阅读' }">{{ item.status }}</span><section v-if="item.open" class="manual-preview"><p>建议每日保证户外活动，近距离用眼 30 分钟后主动休息，保持读写距离和坐姿。复诊前请整理既往检查报告，并按通知时间到诊。</p></section></article></section>
           </template>
@@ -1199,7 +1200,7 @@ onBeforeUnmount(() => {
           </template>
 
           <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
-          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!consentSigned && !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '返回专案流程' : '确认签署' }}</button></div><div v-else-if="activeProjectSubPage === 'training'" class="project-sub-bottom"><button class="primary full" type="button" @click="submitProjectSubPage">提交训练记录</button></div>
+          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!consentSigned && !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '返回专案流程' : '确认签署' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -2315,9 +2316,6 @@ onBeforeUnmount(() => {
 /* followup notice page refinement */
 .project-subpage-screen:has(.followup-notice-time) .project-sub-summary{padding:12px 14px!important}.followup-notice-time{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;padding:14px!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.followup-notice-time small{color:#8A9CA1!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important}.followup-notice-time div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.followup-notice-time strong{min-width:0!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.followup-notice-time span{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}.followup-info-list{padding:0 14px!important;border-radius:8px!important;overflow:hidden!important}.followup-info-list p{min-height:42px!important;margin:0!important;padding:11px 0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;border-top:1px solid rgba(216,238,234,.62)!important;line-height:1.45!important}.followup-info-list p:first-child{border-top:0!important}.followup-info-list em{flex:none!important;color:#8A9CA1!important;font-size:13px!important;font-style:normal!important;white-space:nowrap!important}.followup-info-list b{min-width:0!important;color:#20343A!important;font-size:14px!important;font-weight:700!important;text-align:left!important;overflow-wrap:anywhere!important}.followup-projects .sub-chip-list{display:flex!important;gap:8px!important;flex-wrap:wrap!important}.followup-projects .sub-chip-list span{border:0!important;border-radius:8px!important;background:#E8F8F6!important;color:#12A8AD!important;padding:6px 9px!important;font-size:12px!important;font-weight:800!important;box-shadow:none!important}.followup-notes .sub-note-list{margin-bottom:0!important}.followup-notes .ghost,.followup-notes button{display:none!important}
 @media(max-width:360px){.followup-notice-time div{align-items:flex-start!important;flex-direction:column!important}.followup-info-list p{align-items:flex-start!important}}
-/* training plan notice refinement */
-.project-subpage-screen:has(.training-notice-time){padding-bottom:92px!important}.training-notice-time{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;padding:14px!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.training-notice-time small{color:#8A9CA1!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important}.training-notice-time div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.training-notice-time strong{min-width:0!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.training-notice-time span{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}.training-task-card{padding:14px!important;border-radius:8px!important}.training-task-card h3,.training-record-card h3{margin:0 0 8px!important;color:#20343A!important;font-size:15px!important;font-weight:800!important}.training-task-list{display:flex!important;flex-direction:column!important}.training-task-list article{padding:10px 0!important;border-top:1px solid rgba(216,238,234,.62)!important;background:transparent!important;box-shadow:none!important;border-radius:0!important}.training-task-list article:first-child{border-top:0!important;padding-top:2px!important}.training-task-list article:last-child{padding-bottom:0!important}.training-task-list article>div{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important}.training-task-list b{color:#20343A!important;font-size:14px!important;line-height:1.35!important}.training-task-list em{height:20px!important;padding:0 7px!important;border:0!important;border-radius:999px!important;font-style:normal!important;font-size:11px!important;font-weight:800!important;line-height:20px!important}.training-task-list em.pending{background:#FFF4E8!important;color:#F2994A!important}.training-task-list em.done{background:#E8F8F1!important;color:#18B884!important}.training-task-list p{margin:5px 0 0!important;color:#60757C!important;font-size:13px!important;line-height:1.5!important}.training-record-card{padding:14px!important;border-radius:8px!important}.training-record-card .sub-options{margin-bottom:10px!important}.training-record-card .sub-options span{height:30px!important;padding:0 10px!important;border:0!important;border-radius:999px!important;background:#F3F7F6!important;color:#60757C!important;font-size:12px!important;font-weight:800!important;display:inline-flex!important;align-items:center!important}.training-record-card .sub-options .selected{background:#E8F8F6!important;color:#12A8AD!important}.training-record-card textarea{min-height:68px!important;border-radius:8px!important}.training-record-card .upload-placeholder{height:42px!important;margin-top:8px!important;border-radius:8px!important;background:#FAFEFD!important;color:#12A8AD!important;font-size:13px!important}
-@media(max-width:360px){.training-notice-time div{align-items:flex-start!important;flex-direction:column!important}.training-notice-time strong{font-size:15px!important}}
 </style>
 
 
