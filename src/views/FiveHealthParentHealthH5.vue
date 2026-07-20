@@ -310,9 +310,17 @@ const messages = [
   { title: '复筛预约提醒', text: '视力健康建议预约复筛', time: '04-13 10:00', unread: true, target: 'rescreen' },
 ]
 
-const projectMessages = [
-  { from: '家长', text: '孩子最近晚饭后阅读时间较长，训练后说眼睛有点酸。' },
-  { from: '王医生', text: '训练强度可以先降低到 15 分钟，阅读期间保持休息节奏，如酸胀持续请提前复诊。' },
+const familyServicePages = ['parentManual', 'onlineInteraction', 'followSurvey', 'familyTrainingRecord']
+const parentManuals = [
+  { title: '视力健康家庭指导手册', source: '儿童眼保健专科', date: '2026-04-02', status: '已阅读', open: true },
+  { title: '近视防控行为建议', source: '儿童眼保健专科', date: '2026-04-05', status: '未阅读', open: false },
+  { title: '复诊前注意事项', source: '儿童眼保健专科', date: '2026-04-10', status: '未阅读', open: false },
+  { title: '家庭训练配合说明', source: '视觉训练师', date: '2026-04-12', status: '已阅读', open: false },
+]
+const followSurveyItems = [
+  { title: '4月随访问卷', date: '2026-04-16', status: '待填写' },
+  { title: '用眼习惯随访', date: '2026-04-10', status: '已提交' },
+  { title: '训练依从性问卷', date: '2026-04-18', status: '待填写' },
 ]
 
 const specialProjects = ref([
@@ -343,11 +351,10 @@ const specialProjects = ref([
       ],
     },
     services: [
-      { title: '个性化健康指导', desc: '医生推送用眼行为建议：每日户外活动不少于 2 小时。', icon: '导' },
-      { title: '家庭训练记录', desc: '本周视觉训练待提交，可查看历史训练记录。', icon: '训' },
-      { title: '随访问卷', desc: '本月随访问卷待填写。', icon: '卷' },
-      { title: '在线互动', desc: '家长留言、图片记录与医生回复。', icon: '聊' },
-      { title: '家长手册', desc: '视力健康家庭干预手册。', icon: '册' },
+      { title: '家长手册', desc: '查看专科推送的家庭指导内容', action: 'parentManual' },
+      { title: '在线互动', desc: '留言、上传图片并查看医生回复', action: 'onlineInteraction' },
+      { title: '随访问卷', desc: '填写医生推送的随访问卷', action: 'followSurvey' },
+      { title: '家庭训练记录', desc: '提交训练记录并查看历史记录', action: 'familyTrainingRecord' },
     ],
   },
   {
@@ -364,7 +371,7 @@ const specialProjects = ref([
 ])
 
 const currentProject = computed(() => specialProjects.value.find((item) => item.id === activeSpecialProjectId.value) || specialProjects.value[0])
-const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', specialtyReport: '专科诊疗报告', followup: '复诊计划', training: '家庭训练计划' }[activeProjectSubPage.value] || '专案详情'))
+const projectSubPageTitle = computed(() => ({ profile: '儿童建档', questionnaire: '首诊问卷', consent: '知情同意书', specialtyReport: '专科诊疗报告', followup: '复诊计划', training: '家庭训练计划', parentManual: '家长手册', onlineInteraction: '在线互动', followSurvey: '随访问卷', familyTrainingRecord: '家庭训练记录' }[activeProjectSubPage.value] || '专案详情'))
 const projectProfileStatusText = computed(() => ({ saved: '已保存未提交', editing: '编辑中', submitted: '已提交' }[projectProfileStatus.value] || '已保存未提交'))
 const projectQuestionnaireStatusText = computed(() => ({ editing: '填写中', saved: '已保存未提交', submitted: '已提交' }[projectQuestionnaireStatus.value] || '填写中'))
 const isProjectProfileEditing = computed(() => activeProjectSubPage.value === 'profile' && projectProfileStatus.value === 'editing')
@@ -590,6 +597,18 @@ function handleRehabAppointment(index) {
 function requestRehabLeave() {
   showProjectToast('请假申请功能待开放')
 }
+function sendFamilyMessage() {
+  showProjectToast('留言已发送')
+}
+function uploadFamilyImage() {
+  showProjectToast('图片上传功能待开放')
+}
+function submitFollowSurvey() {
+  showProjectToast('随访问卷已提交')
+}
+function submitFamilyTrainingRecord() {
+  showProjectToast('训练记录已提交')
+}
 function closeReportDoc() {
   activeReportDoc.value = null
   resetReportViewer()
@@ -678,8 +697,21 @@ function openProjectPrepPage(target) {
   projectArchiveToast.value = ''
   if (target === 'consent') consentConfirmed.value = consentSigned.value
 }
+function openFamilyServicePage(target) {
+  activeProjectSubPage.value = target
+  activeProjectPanel.value = 'service'
+  activeTab.value = 'project'
+  page.value = 'projectSubPage'
+  projectSubmitMessage.value = ''
+  projectArchiveToast.value = ''
+}
 function backToProjectFlow() {
   projectSubmitMessage.value = ''
+  if (familyServicePages.includes(activeProjectSubPage.value)) {
+    activeProjectPanel.value = 'service'
+    setPrimaryPage('project')
+    return
+  }
   activeProjectPanel.value = 'flow'
   setPrimaryPage('project')
 }
@@ -1071,8 +1103,8 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else>
-            <article v-if="!consentSigned" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看医生指导、随访问卷和家庭训练记录。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
-            <template v-else><article v-for="item in currentProject.services" :key="item.title" class="service-row project-service-row"><b>{{ item.icon }}</b><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span>进入</span></article><article class="message-card project-message-card"><strong>在线互动</strong><p v-for="item in projectMessages" :key="item.text"><b>{{ item.from }}：</b>{{ item.text }}</p></article></template>
+            <article v-if="!consentSigned" class="locked-card"><strong>家庭服务暂未开放</strong><p>签署知情同意书后，可查看家长手册、在线互动、随访问卷和家庭训练记录。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
+            <template v-else><button v-for="item in currentProject.services" :key="item.title" class="family-service-entry" type="button" @click="openFamilyServicePage(item.action)"><span><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></span><em>进入 &gt;</em></button></template>
           </template>
           </template>
         </section>
@@ -1133,6 +1165,21 @@ onBeforeUnmount(() => {
             <section class="sub-section training-overview training-notice-time"><small>训练周期</small><div><strong>2026-04-15 至 2026-04-21</strong><span>待提交</span></div></section>
             <section class="sub-section training-task-card"><h3>本周训练任务</h3><div class="training-task-list"><article><div><b>户外活动</b><em class="pending">未完成</em></div><p>每日不少于 2 小时，优先选择自然光环境。</p></article><article><div><b>远眺训练</b><em class="pending">未完成</em></div><p>每日 3 次，每次 5 分钟。</p></article><article><div><b>用眼间隔</b><em class="done">已完成</em></div><p>近距离用眼 30 分钟后休息 10 分钟。</p></article><article><div><b>眼保健操</b><em class="pending">未完成</em></div><p>每日 1 次，注意动作规范。</p></article></div></section>
             <section class="sub-section training-record-card"><h3>家长记录</h3><div class="sub-options"><span class="selected">今日已完成</span><span>今日未完成</span></div><textarea placeholder="填写训练备注"></textarea><button class="upload-placeholder" type="button">+ 上传图片</button></section>
+          </template>
+          <template v-else-if="activeProjectSubPage === 'parentManual'">
+            <section class="family-sub-list"><article v-for="item in parentManuals" :key="item.title" class="manual-row"><div><strong>{{ item.title }}</strong><p>{{ item.source }}｜{{ item.date }}</p></div><span :class="{ pending: item.status === '未阅读' }">{{ item.status }}</span><section v-if="item.open" class="manual-preview"><p>建议每日保证户外活动，近距离用眼 30 分钟后主动休息，保持读写距离和坐姿。复诊前请整理既往检查报告，并按通知时间到诊。</p></section></article></section>
+          </template>
+          <template v-else-if="activeProjectSubPage === 'onlineInteraction'">
+            <section class="interaction-flow"><article class="parent"><strong>家长留言</strong><p>孩子最近晚饭后阅读时间较长，训练后说眼睛有点酸。</p><small>04月16日 20:10</small></article><article class="image-note"><span>训练记录照片 1 张</span></article><article class="doctor"><strong>医生回复</strong><p>建议训练后适当远眺 5 分钟，如持续眼酸可减少单次训练时长。</p><small>04月17日 09:30</small></article><article class="parent"><strong>家长回复</strong><p>收到，会按建议调整。</p><small>04月17日 10:05</small></article></section>
+            <section class="interaction-input"><textarea placeholder="请输入留言"></textarea><div><button type="button" @click="uploadFamilyImage">上传图片</button><button type="button" @click="sendFamilyMessage">发送</button></div></section>
+          </template>
+          <template v-else-if="activeProjectSubPage === 'followSurvey'">
+            <section class="follow-survey-list"><article v-for="item in followSurveyItems" :key="item.title"><div><strong>{{ item.title }}</strong><p>推送日期：{{ item.date }}</p></div><span :class="{ done: item.status === '已提交' }">{{ item.status }}</span></article></section>
+            <section class="survey-question-card"><h3>4月随访问卷</h3><article><h4>最近一周每日户外活动是否达到 2 小时？</h4><div class="sub-options"><span>是</span><span>否</span><span class="selected">部分达到</span></div></article><article><h4>近距离用眼 30 分钟后是否能主动休息？</h4><div class="sub-options"><span>能</span><span class="selected">偶尔能</span><span>不能</span></div></article><article><h4>是否按要求完成家庭训练？</h4><div class="sub-options"><span>全部完成</span><span class="selected">部分完成</span><span>未完成</span></div></article><article><h4>是否出现眼酸、眼干或头痛？</h4><div class="sub-options"><span>无</span><span class="selected">偶尔</span><span>经常</span></div></article><textarea placeholder="备注说明"></textarea><button type="button" @click="submitFollowSurvey">提交随访问卷</button></section>
+          </template>
+          <template v-else-if="activeProjectSubPage === 'familyTrainingRecord'">
+            <section class="today-training-card"><h3>今日训练记录</h3><div class="training-metrics"><p><em>户外活动</em><b>2 小时</b></p><p><em>远眺训练</em><b>3 次</b></p><p><em>眼保健操</em><b>1 次</b></p></div><div class="sub-options"><span class="selected">已完成</span><span>未完成</span></div><textarea placeholder="训练备注"></textarea><button class="upload-placeholder" type="button" @click="uploadFamilyImage">+ 上传图片</button><button class="primary full" type="button" @click="submitFamilyTrainingRecord">提交训练记录</button></section>
+            <section class="history-training-list"><h3>历史训练记录</h3><p><span>04月16日</span><b>完成度：80%</b><em>已提交</em><small>完成户外活动，远眺训练少 1 次</small></p><p><span>04月17日</span><b>完成度：100%</b><em>已提交</em><small>全部完成</small></p><p><span>04月18日</span><b>完成度：--</b><em class="pending">未提交</em><small>暂无</small></p></section>
           </template>
 
           <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
@@ -2216,6 +2263,7 @@ onBeforeUnmount(() => {
 /* project report tab hierarchy */
 .specialty-report-card{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:10px}.specialty-report-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-report-head strong{color:#20343A;font-size:16px;font-weight:800}.specialty-report-head span{padding:3px 8px;border-radius:999px;background:#E8F8F1;color:#18B884;font-size:12px;font-weight:800}.specialty-report-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.specialty-report-meta p{min-width:0;padding:8px;border-radius:8px;background:#F7FBFA}.specialty-report-meta em{display:block;color:#8A9CA1;font-size:11px;font-style:normal}.specialty-report-meta b{display:block;margin-top:4px;color:#20343A;font-size:12px;line-height:1.25}.specialty-report-meta .risk{color:#C76D12}.specialty-report-link{align-self:flex-end;border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0}.project-report-group-title{height:22px;display:flex;align-items:center;gap:7px;margin:2px 2px -2px;color:#20343A}.project-report-group-title i,.specialty-section-toggle i{width:3px;height:14px;border-radius:999px;background:#12A8AD}.project-report-group-title strong{font-size:14px;font-weight:800;line-height:1}.project-screen .archive-collapsible .archive-card.compact{min-height:56px!important;padding:10px 0!important;border-radius:0!important}.project-screen .archive-collapsible .archive-title strong{font-size:14px!important}.project-screen .archive-collapsible .archive-card.compact p{margin-top:4px!important}.project-screen .archive-collapsible .archive-card.compact small{font-size:12px!important;color:#60757C!important;font-weight:500!important}
 .project-rehab-plan,.rehab-panel,.rehab-teacher-card{border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-rehab-plan{padding:14px;display:flex;flex-direction:column;gap:11px}.rehab-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.rehab-card-head strong{color:#20343A;font-size:16px;font-weight:800}.rehab-card-head span,.rehab-appointment-row span,.rehab-leave-list em{padding:3px 8px;border-radius:999px;background:#E8F8F1;color:#18B884;font-size:12px;font-weight:800;font-style:normal;white-space:nowrap}.rehab-card-head span{background:#E8F8F6;color:#12A8AD}.rehab-plan-main{padding:10px;border-radius:8px;background:#F6FBFA}.rehab-plan-main b{display:block;color:#20343A;font-size:15px}.rehab-plan-main p{margin:5px 0 0;color:#60757C;font-size:13px;line-height:1.5}.rehab-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.rehab-info-grid p,.rehab-teacher-card>p{margin:0;padding:9px 10px;border-radius:8px;background:#F7FBFA}.rehab-info-grid em,.rehab-teacher-card em{display:block;color:#8A9CA1;font-size:12px;font-style:normal}.rehab-info-grid b,.rehab-teacher-card b{display:block;margin-top:4px;color:#20343A;font-size:13px;line-height:1.4}.rehab-panel{padding:12px 14px}.rehab-appointment-row{min-height:58px;padding:10px 0;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;border-top:1px solid rgba(216,238,234,.62)}.rehab-appointment-row:first-of-type{border-top:0}.rehab-appointment-row strong{color:#20343A;font-size:14px}.rehab-appointment-row p{margin:4px 0 0;color:#60757C;font-size:12px;line-height:1.4}.rehab-appointment-row span.pending,.rehab-leave-list em.pending{background:#FFF4E8;color:#F2994A}.rehab-appointment-row button,.rehab-panel-head button{border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0;white-space:nowrap}.rehab-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.rehab-leave-list{margin-top:6px}.rehab-leave-list p{min-height:42px;margin:0;padding:10px 0;display:grid;grid-template-columns:92px minmax(0,1fr) auto;align-items:center;gap:8px;border-top:1px solid rgba(216,238,234,.62)}.rehab-leave-list p:first-child{border-top:0}.rehab-leave-list span{color:#8A9CA1;font-size:12px}.rehab-leave-list b{color:#20343A;font-size:13px;line-height:1.35}.rehab-teacher-card{padding:14px;display:flex;flex-direction:column;gap:8px}.rehab-teacher-card>div{display:flex;align-items:center;justify-content:space-between}.rehab-teacher-card strong{color:#20343A;font-size:16px}.rehab-teacher-card div p{margin:0;color:#12A8AD;font-size:13px;font-weight:800}.specialty-archive-section{padding:14px!important}.project-subpage-screen .specialty-archive-section .archive-head{min-height:30px;margin:0;padding:0 0 8px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px}.project-subpage-screen .specialty-archive-section .archive-head button{height:28px;padding:0 10px;border:1px solid rgba(216,238,234,.85);border-radius:999px;background:#F0FCFA;color:#12A8AD;font-size:12px;font-weight:700}.project-subpage-screen .specialty-archive-section .archive-card.compact{min-height:56px;padding:10px 0;border-radius:0;border-top:1px solid rgba(216,238,234,.62);box-shadow:none}.project-subpage-screen .specialty-archive-section .archive-title strong{font-size:14px}.project-subpage-screen .specialty-archive-section .archive-card.compact small{font-size:12px;color:#60757C;font-weight:500}@media(max-width:360px){.rehab-appointment-row{grid-template-columns:minmax(0,1fr) auto}.rehab-appointment-row button{grid-column:2}.rehab-leave-list p{grid-template-columns:1fr auto}.rehab-leave-list span{grid-column:1 / -1}}
+.family-service-entry{width:100%;min-height:72px;padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;text-align:left}.family-service-entry strong{display:block;color:#20343A;font-size:15px;line-height:1.35}.family-service-entry p{margin:5px 0 0;color:#60757C;font-size:13px;line-height:1.45}.family-service-entry em{color:#12A8AD;font-size:13px;font-style:normal;font-weight:800;white-space:nowrap}.family-sub-list,.interaction-flow,.interaction-input,.follow-survey-list,.survey-question-card,.today-training-card,.history-training-list{border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.family-sub-list{padding:4px 14px}.manual-row{padding:11px 0;border-top:1px solid rgba(216,238,234,.62);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.manual-row:first-child{border-top:0}.manual-row strong,.follow-survey-list strong{color:#20343A;font-size:14px}.manual-row p,.follow-survey-list p{margin:4px 0 0;color:#60757C;font-size:12px}.manual-row span,.follow-survey-list span,.history-training-list em{align-self:start;padding:3px 8px;border-radius:999px;background:#E8F8F1;color:#18B884;font-size:12px;font-weight:800;font-style:normal;white-space:nowrap}.manual-row span.pending,.follow-survey-list span,.history-training-list em.pending{background:#FFF4E8;color:#F2994A}.follow-survey-list span.done{background:#E8F8F1;color:#18B884}.manual-preview{grid-column:1 / -1;margin-top:2px;padding:10px;border-radius:8px;background:#F7FBFA}.manual-preview p{margin:0;color:#31565C;font-size:13px;line-height:1.6}.interaction-flow{padding:12px;display:flex;flex-direction:column;gap:9px}.interaction-flow article{max-width:92%;padding:10px;border-radius:8px;background:#fff;border:1px solid rgba(216,238,234,.72)}.interaction-flow article.doctor{align-self:flex-start;background:#EFFFFB;border-color:#D8EEEA}.interaction-flow article.parent{align-self:flex-end}.interaction-flow strong{color:#20343A;font-size:13px}.interaction-flow p{margin:5px 0;color:#31565C;font-size:13px;line-height:1.5}.interaction-flow small{color:#8A9CA1;font-size:11px}.interaction-flow .image-note{align-self:flex-end;border-style:dashed;color:#12A8AD;font-size:13px;font-weight:800}.interaction-input{padding:12px}.interaction-input textarea,.survey-question-card textarea,.today-training-card textarea{width:100%;min-height:66px;border:1px solid rgba(216,238,234,.9);border-radius:8px;background:#FAFEFD;padding:10px;color:#20343A;font:inherit;resize:none}.interaction-input div{margin-top:8px;display:flex;justify-content:flex-end;gap:8px}.interaction-input button,.survey-question-card>button{height:34px;padding:0 12px;border:0;border-radius:8px;background:#E8F8F6;color:#12A8AD;font-size:13px;font-weight:800}.interaction-input button:last-child,.survey-question-card>button{background:#12A8AD;color:#fff}.follow-survey-list{padding:4px 14px}.follow-survey-list article{padding:11px 0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;border-top:1px solid rgba(216,238,234,.62)}.follow-survey-list article:first-child{border-top:0}.survey-question-card,.today-training-card,.history-training-list{padding:14px}.survey-question-card h3,.today-training-card h3,.history-training-list h3{margin:0 0 10px;color:#20343A;font-size:15px}.survey-question-card article{padding:10px 0;border-top:1px solid rgba(216,238,234,.62)}.survey-question-card article:first-of-type{border-top:0}.survey-question-card h4{margin:0 0 8px;color:#20343A;font-size:14px;line-height:1.45}.survey-question-card>button{width:100%;margin-top:10px}.training-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}.training-metrics p{margin:0;padding:9px;border-radius:8px;background:#F7FBFA}.training-metrics em{display:block;color:#8A9CA1;font-size:12px;font-style:normal}.training-metrics b{display:block;margin-top:4px;color:#20343A;font-size:13px}.today-training-card .sub-options{margin-bottom:10px}.today-training-card .upload-placeholder{width:100%;height:42px;margin:8px 0;border:1px dashed rgba(18,168,173,.45);border-radius:8px;background:#FAFEFD;color:#12A8AD;font-weight:800}.history-training-list p{margin:0;padding:10px 0;display:grid;grid-template-columns:76px minmax(0,1fr) auto;gap:8px;border-top:1px solid rgba(216,238,234,.62)}.history-training-list p:first-of-type{border-top:0}.history-training-list span{color:#20343A;font-size:13px;font-weight:800}.history-training-list b{color:#60757C;font-size:13px}.history-training-list small{grid-column:2 / -1;color:#8A9CA1;font-size:12px;line-height:1.45}@media(max-width:360px){.family-service-entry{grid-template-columns:1fr}.family-service-entry em{justify-self:start}.training-metrics{grid-template-columns:1fr}.history-training-list p{grid-template-columns:1fr auto}.history-training-list small{grid-column:1 / -1}}
 .specialty-summary-card,.specialty-detail-section{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.specialty-summary-card{display:grid;grid-template-columns:1fr 1fr;gap:8px}.specialty-summary-card>div{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-summary-card strong{color:#20343A;font-size:16px}.specialty-summary-card span,.specialty-tags span{padding:4px 8px;border-radius:999px;background:#FFF4E8;color:#C76D12;font-size:12px;font-weight:800}.specialty-summary-card p,.specialty-note-grid p{min-width:0;padding:8px;border-radius:8px;background:#F7FBFA}.specialty-summary-card em,.specialty-note-grid em,.specialty-plan-list em{display:block;color:#8A9CA1;font-size:11px;font-style:normal;line-height:1.35}.specialty-summary-card b,.specialty-note-grid b,.specialty-plan-list b{display:block;margin-top:4px;color:#20343A;font-size:13px;line-height:1.45}.specialty-detail-section{padding:0;overflow:hidden}.specialty-section-toggle{width:100%;min-height:42px;padding:0 14px;border:0;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-section-toggle span{display:flex;align-items:center;gap:7px;color:#20343A;font-size:15px;font-weight:800}.specialty-section-toggle em{font-style:normal;color:#12A8AD;font-size:12px;font-weight:800}.specialty-section-body{padding:0 14px 14px;border-top:1px solid rgba(216,238,234,.62)}.specialty-eye-table{margin-top:12px;border:1px solid rgba(216,238,234,.72);border-radius:8px;overflow:hidden}.specialty-eye-table .head,.specialty-eye-table p{display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1fr);gap:0}.specialty-eye-table .head{background:#F0FCFA;color:#60757C;font-size:12px;font-weight:800}.specialty-eye-table span,.specialty-eye-table b{padding:8px 7px;border-top:1px solid rgba(216,238,234,.62);font-size:12px;line-height:1.35;text-align:left}.specialty-eye-table .head span{border-top:0}.specialty-eye-table b{color:#20343A;font-weight:700}.specialty-note-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.specialty-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.specialty-paragraph{margin-top:10px;color:#20343A;font-size:13px;line-height:1.65}.specialty-plan-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}.specialty-plan-list p{padding:10px;border-radius:8px;background:#F7FBFA}.specialty-attachment-list{display:flex;flex-direction:column;margin-top:12px}.specialty-attachment-list button{height:42px;border:0;border-top:1px solid rgba(216,238,234,.62);background:#fff;display:flex;align-items:center;justify-content:space-between;color:#20343A;font-size:13px;font-weight:700}.specialty-attachment-list button:first-child{border-top:0}.specialty-attachment-list span{color:#12A8AD;font-size:12px;font-weight:800}
 @media(max-width:390px){.specialty-report-meta{grid-template-columns:1fr 1fr}.specialty-summary-card,.specialty-note-grid{grid-template-columns:1fr}.specialty-eye-table .head,.specialty-eye-table p{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr)}.specialty-eye-table span,.specialty-eye-table b{padding:7px 5px;font-size:11px}}
 /* specialty report detail polish */
