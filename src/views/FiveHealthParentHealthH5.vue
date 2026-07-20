@@ -63,6 +63,10 @@ const activeReportDoc = ref(null)
 const lisArchiveExpanded = ref(true)
 const pacsArchiveExpanded = ref(false)
 const specialtyReportExpanded = ref(['core', 'diagnosis', 'intervention', 'followup'])
+const rehabAppointments = reactive([
+  { time: '04月16日 周二 16:30', item: '视觉训练｜李老师', status: '已预约', action: '变更预约' },
+  { time: '04月19日 周五 16:30', item: '视觉训练｜李老师', status: '待确认', action: '确认预约' },
+])
 const reportZoom = ref(1)
 const reportImageX = ref(0)
 const reportImageY = ref(0)
@@ -552,7 +556,7 @@ function openReportDoc(item, type) {
 }
 function viewSpecialtyReport() {
   activeProjectSubPage.value = 'specialtyReport'
-  activeProjectPanel.value = 'report'
+  activeProjectPanel.value = 'flow'
   activeTab.value = 'project'
   page.value = 'projectSubPage'
   projectSubmitMessage.value = ''
@@ -564,6 +568,27 @@ function toggleSpecialtyReportGroup(key) {
 function previewSpecialtyAttachment() {
   projectArchiveToast.value = '附件预览暂未开放'
   window.setTimeout(() => { projectArchiveToast.value = '' }, 1600)
+}
+function showProjectToast(message) {
+  projectArchiveToast.value = message
+  window.setTimeout(() => { projectArchiveToast.value = '' }, 1600)
+}
+function previewArchiveDoc() {
+  showProjectToast('查看检查单据')
+}
+function handleRehabAppointment(index) {
+  const appointment = rehabAppointments[index]
+  if (!appointment) return
+  if (appointment.status === '待确认') {
+    appointment.status = '已预约'
+    appointment.action = '变更预约'
+    showProjectToast('预约已确认')
+    return
+  }
+  showProjectToast('变更预约功能待开放')
+}
+function requestRehabLeave() {
+  showProjectToast('请假申请功能待开放')
 }
 function closeReportDoc() {
   activeReportDoc.value = null
@@ -637,7 +662,7 @@ function canOpenFlowNode(item) {
 function openFlowNode(item) {
   if (!canOpenFlowNode(item)) return
   if (item.action === 'report') {
-    activeProjectPanel.value = 'report'
+    viewSpecialtyReport()
     return
   }
   activeProjectSubPage.value = item.action
@@ -1023,7 +1048,7 @@ onBeforeUnmount(() => {
 
           <div class="project-tabs">
             <button :class="{ active: activeProjectPanel === 'flow' }" type="button" @click="activeProjectPanel = 'flow'">专案进展</button>
-            <button :class="{ active: activeProjectPanel === 'report' }" type="button" @click="activeProjectPanel = 'report'">报告</button>
+            <button :class="{ active: activeProjectPanel === 'report' }" type="button" @click="activeProjectPanel = 'report'">康复</button>
             <button :class="{ active: activeProjectPanel === 'service' }" type="button" @click="activeProjectPanel = 'service'">家庭服务</button>
           </div>
 
@@ -1035,23 +1060,13 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else-if="activeProjectPanel === 'report'">
-            <article v-if="!consentSigned" class="locked-card"><strong>报告暂未开放</strong><p>该专案尚未签署知情同意书，签署后可查看专科诊疗报告、LIS 化验单、PACS 检查报告和趋势数据。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
+            <article v-if="!consentSigned" class="locked-card"><strong>康复服务暂未开放</strong><p>签署知情同意书后，可查看康复计划、预约安排、请假申请和康复老师信息。</p><button type="button" @click="openProjectPrepPage('consent')">去签署</button></article>
             <template v-else>
-              <article class="specialty-report-card">
-                <div class="specialty-report-head"><strong>专科诊疗报告</strong><span>已生成</span></div>
-                <div class="specialty-report-meta"><p><em>诊疗日期</em><b>{{ currentProject.report.time }}</b></p><p><em>风险等级</em><b class="risk">三级 轻度近视</b></p><p><em>建议复查</em><b>3个月后</b></p></div>
-                <button class="specialty-report-link" type="button" @click="viewSpecialtyReport">查看报告 &gt;</button>
-              </article>
               <p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
-              <div class="project-report-group-title"><i></i><strong>原始检查单据归档</strong></div>
-              <section class="archive-section archive-collapsible">
-                <div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div>
-                <template v-if="lisArchiveExpanded"><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'lis')">查看</button></div><p>{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></template>
-              </section>
-              <section class="archive-section archive-collapsible">
-                <div class="archive-head signup-section-title"><strong>PACS 检查报告归档</strong><span>共 {{ currentProject.report.pacs.length }} 份</span><button type="button" @click="pacsArchiveExpanded = !pacsArchiveExpanded">{{ pacsArchiveExpanded ? '收起' : '展开' }}</button></div>
-                <template v-if="pacsArchiveExpanded"><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'pacs')">查看</button></div><p>{{ item.date }}</p><small>检查部位：{{ item.part }}｜{{ item.summary }}</small></div></article></template>
-              </section>
+              <section class="rehab-plan-card project-rehab-plan"><div class="rehab-card-head"><strong>康复计划</strong><span>执行中</span></div><div class="rehab-plan-main"><b>视觉功能训练</b><p>改善调节能力，建立稳定用眼习惯</p></div><div class="rehab-info-grid"><p><em>频次</em><b>每周 2 次</b></p><p><em>周期</em><b>4 周</b></p></div></section>
+              <section class="rehab-panel"><div class="project-report-group-title"><i></i><strong>康复预约</strong></div><article v-for="(item, index) in rehabAppointments" :key="item.time" class="rehab-appointment-row"><div><strong>{{ item.time }}</strong><p>{{ item.item }}</p></div><span :class="{ pending: item.status === '待确认' }">{{ item.status }}</span><button type="button" @click="handleRehabAppointment(index)">{{ item.action }}</button></article></section>
+              <section class="rehab-panel"><div class="rehab-panel-head"><div class="project-report-group-title"><i></i><strong>请假申请</strong></div><button type="button" @click="requestRehabLeave">发起请假</button></div><div class="rehab-leave-list"><p><span>04月12日 16:30</span><b>学校活动冲突</b><em>已同意</em></p><p><span>04月23日 16:30</span><b>家庭行程待确认</b><em class="pending">待确认</em></p></div></section>
+              <section class="rehab-teacher-card"><div><strong>李老师</strong><p>视觉训练师</p></div><p><em>擅长</em><b>儿童视觉功能训练、用眼行为指导</b></p><p><em>联系电话</em><b>138****5678</b></p></section>
             </template>
           </template>
 
@@ -1096,6 +1111,8 @@ onBeforeUnmount(() => {
             <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('base')"><span><i></i>基础建档信息</span><em>{{ specialtyReportExpanded.includes('base') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('base')" class="specialty-section-body"><div class="specialty-note-grid"><p><em>儿童姓名</em><b>林一凡</b></p><p><em>性别</em><b>男</b></p><p><em>出生日期</em><b>2016-04-18</b></p><p><em>身份证号</em><b>110101201604180018</b></p><p><em>健康档案编号</em><b>FH-2026-0418-001</b></p><p><em>学籍 / 班级</em><b>XJ20260418001 / 五年级2班</b></p><p><em>监护人</em><b>王女士</b></p><p><em>联系电话</em><b>138****1234</b></p><p><em>居住地址</em><b>北京市海淀区某某小区3号楼</b></p><p><em>检查机构</em><b>儿童健康管理中心</b></p><p><em>接诊医师</em><b>王医生</b></p><p><em>检查设备编号</em><b>VIS-AXL-20260402</b></p><p><em>五健专案编号</em><b>VH-VISION-2026-0001</b></p><p><em>既往视力筛查历史</em><b>已调取</b></p></div></div></section>
             <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('history')"><span><i></i>主诉、现病史、高危家族史</span><em>{{ specialtyReportExpanded.includes('history') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('history')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>主诉</em><b>近 2 个月上课看黑板不清，偶有眯眼和视疲劳。</b></p><p><em>现病史</em><b>首次发现视力异常约 3 个月前；既往未配镜；无散瞳验光史；无眼外伤史。</b></p><p><em>高危家族史</em><b>父亲中度近视，母亲高度近视约 650 度；无斜视、先天性眼病和遗传性眼底病家族史。</b></p><p><em>用眼生活习惯</em><b>每日户外约 1 小时，电子产品使用约 1-2 小时，读写距离偏近，偶有夜间开灯不足，坐姿偶有歪斜。</b></p></div></div></section>
             <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('exam')"><span><i></i>眼部常规专科查体</span><em>{{ specialtyReportExpanded.includes('exam') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('exam')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>眼睑、结膜、角膜</em><b>未见明显充血、滤泡、倒睫或角膜损伤。</b></p><p><em>前房、瞳孔</em><b>前房深度正常，瞳孔对光反射灵敏。</b></p><p><em>晶状体</em><b>透明，未见先天混浊。</b></p><p><em>眼底初筛</em><b>视盘边界清，黄斑区未见明显异常。</b></p><p><em>眼位与眼球运动</em><b>遮盖试验未见显性斜视，眼球各方向运动未受限。</b></p><p><em>双眼视功能</em><b>立体视、同时视、融合功能初筛正常。</b></p></div></div></section>
+            <section class="specialty-detail-section archive-collapsible specialty-archive-section"><div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div><template v-if="lisArchiveExpanded"><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="previewArchiveDoc">查看</button></div><p>{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></template></section>
+            <section class="specialty-detail-section archive-collapsible specialty-archive-section"><div class="archive-head signup-section-title"><strong>PACS 检查报告归档</strong><span>共 {{ currentProject.report.pacs.length }} 份</span><button type="button" @click="pacsArchiveExpanded = !pacsArchiveExpanded">{{ pacsArchiveExpanded ? '收起' : '展开' }}</button></div><template v-if="pacsArchiveExpanded"><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="previewArchiveDoc">查看</button></div><p>{{ item.date }}</p><small>检查部位：{{ item.part }}｜{{ item.summary }}</small></div></article></template></section>
             <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('attachments')"><span><i></i>附件</span><em>{{ specialtyReportExpanded.includes('attachments') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('attachments')" class="specialty-section-body"><div class="specialty-attachment-list"><button type="button" @click="previewSpecialtyAttachment">验光单原始数据截图<span>预览</span></button><button type="button" @click="previewSpecialtyAttachment">眼轴生长对比曲线<span>预览</span></button><button type="button" @click="previewSpecialtyAttachment">视力健康宣教单二维码<span>预览</span></button></div></div></section>
           </template>
           <template v-else-if="activeProjectSubPage === 'consent'">
@@ -2198,6 +2215,7 @@ onBeforeUnmount(() => {
 @media(max-width:390px){.guardian-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}.guardian-grid input{font-size:12px!important}.project-summary-line{gap:8px!important}.project-summary-line .profile-state-tag,.project-summary-line .questionnaire-state-tag{padding:0 7px!important}.guardian-grid .emergency-phone{grid-column:1/-1!important}}
 /* project report tab hierarchy */
 .specialty-report-card{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055);display:flex;flex-direction:column;gap:10px}.specialty-report-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-report-head strong{color:#20343A;font-size:16px;font-weight:800}.specialty-report-head span{padding:3px 8px;border-radius:999px;background:#E8F8F1;color:#18B884;font-size:12px;font-weight:800}.specialty-report-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.specialty-report-meta p{min-width:0;padding:8px;border-radius:8px;background:#F7FBFA}.specialty-report-meta em{display:block;color:#8A9CA1;font-size:11px;font-style:normal}.specialty-report-meta b{display:block;margin-top:4px;color:#20343A;font-size:12px;line-height:1.25}.specialty-report-meta .risk{color:#C76D12}.specialty-report-link{align-self:flex-end;border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0}.project-report-group-title{height:22px;display:flex;align-items:center;gap:7px;margin:2px 2px -2px;color:#20343A}.project-report-group-title i,.specialty-section-toggle i{width:3px;height:14px;border-radius:999px;background:#12A8AD}.project-report-group-title strong{font-size:14px;font-weight:800;line-height:1}.project-screen .archive-collapsible .archive-card.compact{min-height:56px!important;padding:10px 0!important;border-radius:0!important}.project-screen .archive-collapsible .archive-title strong{font-size:14px!important}.project-screen .archive-collapsible .archive-card.compact p{margin-top:4px!important}.project-screen .archive-collapsible .archive-card.compact small{font-size:12px!important;color:#60757C!important;font-weight:500!important}
+.project-rehab-plan,.rehab-panel,.rehab-teacher-card{border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.project-rehab-plan{padding:14px;display:flex;flex-direction:column;gap:11px}.rehab-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.rehab-card-head strong{color:#20343A;font-size:16px;font-weight:800}.rehab-card-head span,.rehab-appointment-row span,.rehab-leave-list em{padding:3px 8px;border-radius:999px;background:#E8F8F1;color:#18B884;font-size:12px;font-weight:800;font-style:normal;white-space:nowrap}.rehab-card-head span{background:#E8F8F6;color:#12A8AD}.rehab-plan-main{padding:10px;border-radius:8px;background:#F6FBFA}.rehab-plan-main b{display:block;color:#20343A;font-size:15px}.rehab-plan-main p{margin:5px 0 0;color:#60757C;font-size:13px;line-height:1.5}.rehab-info-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.rehab-info-grid p,.rehab-teacher-card>p{margin:0;padding:9px 10px;border-radius:8px;background:#F7FBFA}.rehab-info-grid em,.rehab-teacher-card em{display:block;color:#8A9CA1;font-size:12px;font-style:normal}.rehab-info-grid b,.rehab-teacher-card b{display:block;margin-top:4px;color:#20343A;font-size:13px;line-height:1.4}.rehab-panel{padding:12px 14px}.rehab-appointment-row{min-height:58px;padding:10px 0;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;border-top:1px solid rgba(216,238,234,.62)}.rehab-appointment-row:first-of-type{border-top:0}.rehab-appointment-row strong{color:#20343A;font-size:14px}.rehab-appointment-row p{margin:4px 0 0;color:#60757C;font-size:12px;line-height:1.4}.rehab-appointment-row span.pending,.rehab-leave-list em.pending{background:#FFF4E8;color:#F2994A}.rehab-appointment-row button,.rehab-panel-head button{border:0;background:transparent;color:#12A8AD;font-size:12px;font-weight:800;padding:0;white-space:nowrap}.rehab-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.rehab-leave-list{margin-top:6px}.rehab-leave-list p{min-height:42px;margin:0;padding:10px 0;display:grid;grid-template-columns:92px minmax(0,1fr) auto;align-items:center;gap:8px;border-top:1px solid rgba(216,238,234,.62)}.rehab-leave-list p:first-child{border-top:0}.rehab-leave-list span{color:#8A9CA1;font-size:12px}.rehab-leave-list b{color:#20343A;font-size:13px;line-height:1.35}.rehab-teacher-card{padding:14px;display:flex;flex-direction:column;gap:8px}.rehab-teacher-card>div{display:flex;align-items:center;justify-content:space-between}.rehab-teacher-card strong{color:#20343A;font-size:16px}.rehab-teacher-card div p{margin:0;color:#12A8AD;font-size:13px;font-weight:800}.specialty-archive-section{padding:14px!important}.project-subpage-screen .specialty-archive-section .archive-head{min-height:30px;margin:0;padding:0 0 8px;display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px}.project-subpage-screen .specialty-archive-section .archive-head button{height:28px;padding:0 10px;border:1px solid rgba(216,238,234,.85);border-radius:999px;background:#F0FCFA;color:#12A8AD;font-size:12px;font-weight:700}.project-subpage-screen .specialty-archive-section .archive-card.compact{min-height:56px;padding:10px 0;border-radius:0;border-top:1px solid rgba(216,238,234,.62);box-shadow:none}.project-subpage-screen .specialty-archive-section .archive-title strong{font-size:14px}.project-subpage-screen .specialty-archive-section .archive-card.compact small{font-size:12px;color:#60757C;font-weight:500}@media(max-width:360px){.rehab-appointment-row{grid-template-columns:minmax(0,1fr) auto}.rehab-appointment-row button{grid-column:2}.rehab-leave-list p{grid-template-columns:1fr auto}.rehab-leave-list span{grid-column:1 / -1}}
 .specialty-summary-card,.specialty-detail-section{padding:14px;border:0;border-radius:8px;background:#fff;box-shadow:0 8px 22px rgba(28,91,92,.055)}.specialty-summary-card{display:grid;grid-template-columns:1fr 1fr;gap:8px}.specialty-summary-card>div{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-summary-card strong{color:#20343A;font-size:16px}.specialty-summary-card span,.specialty-tags span{padding:4px 8px;border-radius:999px;background:#FFF4E8;color:#C76D12;font-size:12px;font-weight:800}.specialty-summary-card p,.specialty-note-grid p{min-width:0;padding:8px;border-radius:8px;background:#F7FBFA}.specialty-summary-card em,.specialty-note-grid em,.specialty-plan-list em{display:block;color:#8A9CA1;font-size:11px;font-style:normal;line-height:1.35}.specialty-summary-card b,.specialty-note-grid b,.specialty-plan-list b{display:block;margin-top:4px;color:#20343A;font-size:13px;line-height:1.45}.specialty-detail-section{padding:0;overflow:hidden}.specialty-section-toggle{width:100%;min-height:42px;padding:0 14px;border:0;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px}.specialty-section-toggle span{display:flex;align-items:center;gap:7px;color:#20343A;font-size:15px;font-weight:800}.specialty-section-toggle em{font-style:normal;color:#12A8AD;font-size:12px;font-weight:800}.specialty-section-body{padding:0 14px 14px;border-top:1px solid rgba(216,238,234,.62)}.specialty-eye-table{margin-top:12px;border:1px solid rgba(216,238,234,.72);border-radius:8px;overflow:hidden}.specialty-eye-table .head,.specialty-eye-table p{display:grid;grid-template-columns:72px minmax(0,1fr) minmax(0,1fr);gap:0}.specialty-eye-table .head{background:#F0FCFA;color:#60757C;font-size:12px;font-weight:800}.specialty-eye-table span,.specialty-eye-table b{padding:8px 7px;border-top:1px solid rgba(216,238,234,.62);font-size:12px;line-height:1.35;text-align:left}.specialty-eye-table .head span{border-top:0}.specialty-eye-table b{color:#20343A;font-weight:700}.specialty-note-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.specialty-tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.specialty-paragraph{margin-top:10px;color:#20343A;font-size:13px;line-height:1.65}.specialty-plan-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}.specialty-plan-list p{padding:10px;border-radius:8px;background:#F7FBFA}.specialty-attachment-list{display:flex;flex-direction:column;margin-top:12px}.specialty-attachment-list button{height:42px;border:0;border-top:1px solid rgba(216,238,234,.62);background:#fff;display:flex;align-items:center;justify-content:space-between;color:#20343A;font-size:13px;font-weight:700}.specialty-attachment-list button:first-child{border-top:0}.specialty-attachment-list span{color:#12A8AD;font-size:12px;font-weight:800}
 @media(max-width:390px){.specialty-report-meta{grid-template-columns:1fr 1fr}.specialty-summary-card,.specialty-note-grid{grid-template-columns:1fr}.specialty-eye-table .head,.specialty-eye-table p{grid-template-columns:62px minmax(0,1fr) minmax(0,1fr)}.specialty-eye-table span,.specialty-eye-table b{padding:7px 5px;font-size:11px}}
 /* specialty report detail polish */
