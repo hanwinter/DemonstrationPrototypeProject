@@ -1,5 +1,5 @@
 ﻿<script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ArrowDownBold,
@@ -58,6 +58,13 @@ const activeProjectQuestionnaireGroup = ref('')
 const projectQuestionnaireStatus = ref('editing')
 const consentSigned = ref(false)
 const consentConfirmed = ref(false)
+const consentSignatureCanvas = ref(null)
+const consentSignatureData = ref('')
+const consentSignatureConfirmed = ref(false)
+const consentSignaturePoints = ref(0)
+const consentSignatureDrawing = ref(false)
+const consentSignTime = ref('')
+const consentSignatureLastPoint = reactive({ x: 0, y: 0 })
 const projectProfileStatus = ref('saved')
 const projectSubPageReturnPanel = ref('flow')
 const activeReportDoc = ref(null)
@@ -657,9 +664,89 @@ function onReportTouchMove(event) {
 function onReportTouchEnd(event) {
   if (!event.touches.length) reportTouchState.mode = ''
 }
+function setupConsentSignatureCanvas() {
+  nextTick(() => {
+    const canvas = consentSignatureCanvas.value
+    if (!canvas || consentSigned.value) return
+    const rect = canvas.getBoundingClientRect()
+    const ratio = window.devicePixelRatio || 1
+    canvas.width = Math.max(1, Math.floor(rect.width * ratio))
+    canvas.height = Math.max(1, Math.floor(rect.height * ratio))
+    const context = canvas.getContext('2d')
+    context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    context.lineWidth = 2
+    context.lineCap = 'round'
+    context.lineJoin = 'round'
+    context.strokeStyle = '#20343A'
+    if (consentSignatureData.value) {
+      const image = new Image()
+      image.onload = () => context.drawImage(image, 0, 0, rect.width, rect.height)
+      image.src = consentSignatureData.value
+    }
+  })
+}
+function getConsentSignaturePoint(event) {
+  const canvas = consentSignatureCanvas.value
+  const rect = canvas.getBoundingClientRect()
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+}
+function startConsentSignature(event) {
+  if (consentSigned.value) return
+  const canvas = consentSignatureCanvas.value
+  if (!canvas) return
+  canvas.setPointerCapture?.(event.pointerId)
+  const point = getConsentSignaturePoint(event)
+  consentSignatureDrawing.value = true
+  consentSignatureConfirmed.value = false
+  projectSubmitMessage.value = ''
+  consentSignatureLastPoint.x = point.x
+  consentSignatureLastPoint.y = point.y
+}
+function drawConsentSignature(event) {
+  if (!consentSignatureDrawing.value || consentSigned.value) return
+  const canvas = consentSignatureCanvas.value
+  const context = canvas?.getContext('2d')
+  if (!canvas || !context) return
+  const point = getConsentSignaturePoint(event)
+  context.beginPath()
+  context.moveTo(consentSignatureLastPoint.x, consentSignatureLastPoint.y)
+  context.lineTo(point.x, point.y)
+  context.stroke()
+  consentSignatureLastPoint.x = point.x
+  consentSignatureLastPoint.y = point.y
+  consentSignaturePoints.value += 1
+  consentSignatureConfirmed.value = false
+}
+function endConsentSignature(event) {
+  if (!consentSignatureDrawing.value) return
+  consentSignatureDrawing.value = false
+  consentSignatureCanvas.value?.releasePointerCapture?.(event.pointerId)
+}
+function clearConsentSignature() {
+  const canvas = consentSignatureCanvas.value
+  const context = canvas?.getContext('2d')
+  if (canvas && context) context.clearRect(0, 0, canvas.width, canvas.height)
+  consentSignatureData.value = ''
+  consentSignatureConfirmed.value = false
+  consentSignaturePoints.value = 0
+  projectSubmitMessage.value = ''
+  setupConsentSignatureCanvas()
+}
+function confirmConsentSignature() {
+  if (consentSignaturePoints.value < 12) {
+    projectSubmitMessage.value = consentSignaturePoints.value ? '签名内容过少，请重新签写' : '请先完成家长手写签名'
+    consentSignatureConfirmed.value = false
+    return
+  }
+  consentSignatureData.value = consentSignatureCanvas.value?.toDataURL('image/png') || ''
+  consentSignatureConfirmed.value = Boolean(consentSignatureData.value)
+  projectSubmitMessage.value = consentSignatureConfirmed.value ? '签名已确认' : '请先完成家长手写签名'
+}
 function signCurrentProject() {
   consentSigned.value = true
   consentConfirmed.value = true
+  consentSignatureConfirmed.value = true
+  consentSignTime.value = '2026-07-23 14:30'
   specialProjects.value = specialProjects.value.map((project) => ({
     ...project,
     consent: true,
@@ -672,14 +759,18 @@ function signCurrentProject() {
   }))
 }
 function confirmProjectConsent() {
-  if (consentSigned.value) {
-    backToProjectFlow()
+  if (consentSigned.value) return
+  if (!consentConfirmed.value) return
+  if (!consentSignatureData.value || !consentSignatureConfirmed.value) {
+    projectSubmitMessage.value = '请先完成家长手写签名'
     return
   }
-  if (!consentConfirmed.value) return
+  if (consentSignaturePoints.value < 12) {
+    projectSubmitMessage.value = '签名内容过少，请重新签写'
+    return
+  }
   signCurrentProject()
   projectSubmitMessage.value = '知情同意书已签署'
-  backToProjectFlow()
 }
 function canOpenFlowNode(item) {
   return Boolean(item?.action && item.state !== 'not_started')
@@ -695,6 +786,7 @@ function openFlowNode(item) {
   projectSubmitMessage.value = ''
   page.value = 'projectSubPage'
   activeTab.value = 'project'
+  if (activeProjectSubPage.value === 'consent') setupConsentSignatureCanvas()
 }
 function openProjectPrepPage(target) {
   activeProjectSubPage.value = target
@@ -702,7 +794,10 @@ function openProjectPrepPage(target) {
   page.value = 'projectSubPage'
   projectSubmitMessage.value = ''
   projectArchiveToast.value = ''
-  if (target === 'consent') consentConfirmed.value = consentSigned.value
+  if (target === 'consent') {
+    consentConfirmed.value = consentSigned.value
+    setupConsentSignatureCanvas()
+  }
 }
 function openFamilyServicePage(target) {
   activeProjectSubPage.value = target
@@ -1171,11 +1266,11 @@ onBeforeUnmount(() => {
           </template>
           <template v-else-if="activeProjectSubPage === 'consent'">
             <section class="sub-section consent-name"><strong>专案知情同意书</strong><span :class="['consent-state', consentSigned ? 'done' : 'pending']">{{ consentSigned ? '已签署' : '待签署' }}</span></section>
-            <section v-if="consentSigned" class="sub-section signed-info"><p><em>签署时间</em><b>2026-04-02 10:18</b></p><p><em>签署人</em><b>{{ parentProfile.name }}</b></p></section>
             <section class="sub-section consent-content"><h3>服务内容</h3><p>本知情同意书适用于儿童健康管理相关专案服务，包括健康筛查、专科评估、问卷采集、随访管理、家庭干预、复诊提醒及报告展示等内容。</p><h3>数据使用说明</h3><p>筛查和随访数据仅用于本次健康管理、医生评估和家长端报告展示。</p><h3>家长确认事项</h3><p>家长确认已了解服务边界，并同意配合完成问卷、复诊和家庭训练/饮食记录等事项。</p><h3>风险与注意事项</h3><p>如儿童出现视力下降、体重异常、脊柱姿态异常、口腔问题或其他健康异常，应及时到医疗机构进一步检查。</p></section>
             <label v-if="!consentSigned" class="consent-check"><input v-model="consentConfirmed" type="checkbox" />我已阅读并理解以上内容</label>
+            <section v-if="!consentSigned" class="sub-section consent-signature-section"><h3>家长手写签名</h3><div class="signature-pad"><canvas ref="consentSignatureCanvas" @pointerdown.prevent="startConsentSignature" @pointermove.prevent="drawConsentSignature" @pointerup.prevent="endConsentSignature" @pointerleave.prevent="endConsentSignature" @pointercancel.prevent="endConsentSignature"></canvas><span v-if="!consentSignaturePoints">请在此处手写签名</span></div><div class="signature-actions"><button class="ghost" type="button" @click="clearConsentSignature">清除重签</button><button class="ghost" type="button" @click="confirmConsentSignature">确认签名</button></div></section>
+            <section v-if="consentSigned" class="sub-section signed-info consent-signed-detail"><h3>签署信息</h3><p><em>签署人</em><b>林一凡家长</b></p><p><em>签署时间</em><b>{{ consentSignTime }}</b></p><div class="signed-signature"><em>签名图片</em><img :src="consentSignatureData" alt="家长手写签名" /></div></section>
           </template>
-
           <template v-else-if="activeProjectSubPage === 'followup'">
             <section class="sub-section followup-ticket followup-notice-time"><small>复诊时间</small><div><strong>2026-04-18 09:30</strong><span>待复诊</span></div></section>
             <section class="sub-section sub-info-list followup-info-list"><p><em>复诊地点：</em><b>眼保健专科门诊</b></p><p><em>复诊科室：</em><b>{{ currentProject.specialty }}</b></p><p><em>主治医生：</em><b>{{ currentProject.doctor }}</b></p><p><em>联系电话：</em><b>138****1234</b></p></section>
@@ -1200,7 +1295,7 @@ onBeforeUnmount(() => {
           </template>
 
           <p v-if="projectSubmitMessage" class="project-submit-tip">{{ projectSubmitMessage }}</p><p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
-          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交建档信息</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回专案流程</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交首诊问卷</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="!consentSigned && !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '返回专案流程' : '确认签署' }}</button></div>
+          <div v-if="activeProjectSubPage === 'profile'" :class="['project-sub-bottom', 'profile-actions', projectProfileStatus]"><template v-if="projectProfileStatus === 'saved'"><button class="ghost" type="button" @click="editProjectProfile">编辑资料</button><button class="primary" type="button" @click="submitProjectProfile">提交</button></template><template v-else-if="projectProfileStatus === 'editing'"><button class="ghost" type="button" @click="cancelProjectProfileEdit">取消</button><button class="primary" type="button" @click="saveProjectProfileDraft">保存</button></template><template v-else><button class="ghost" type="button" @click="requestProjectProfileChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回</button></template></div><div v-else-if="activeProjectSubPage === 'questionnaire'" :class="['project-sub-bottom', 'questionnaire-actions', projectQuestionnaireStatus]"><template v-if="projectQuestionnaireStatus === 'submitted'"><button class="ghost" type="button" @click="requestProjectQuestionnaireChange">申请修改</button><button class="primary" type="button" @click="backToProjectFlow">返回</button></template><template v-else><button class="ghost" type="button" @click="saveProjectQuestionnaireDraft">保存草稿</button><button class="primary" type="button" @click="submitProjectQuestionnaire">提交</button></template></div><div v-else-if="activeProjectSubPage === 'consent'" class="project-sub-bottom"><button class="primary full" type="button" :disabled="consentSigned || !consentConfirmed" @click="confirmProjectConsent">{{ consentSigned ? '已完成签署' : '确认签署' }}</button></div>
         </section>
         <section v-else-if="page === 'reports'" class="screen report-screen"><div v-if="reportsBackTarget === 'home'" class="page-title route-return-title"><button type="button" @click="backFromReports"><el-icon><ArrowLeft /></el-icon></button><h2>体检报告</h2></div>
           <article class="student-profile-card report-student-card">
@@ -1280,15 +1375,15 @@ onBeforeUnmount(() => {
 
         <section v-else-if="page === 'heightWeightTest'" class="screen ai-test-sub-screen">
           <div class="page-title project-subpage-title"><button type="button" @click="backFromAiTestSubPage"><el-icon><ArrowLeft /></el-icon></button><h2>身高体重自测</h2><span class="top-placeholder"></span></div>
-          <article class="ai-student-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong></div><span>生长发育</span></article>
+          <article class="ai-student-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong></div></article>
           <section class="ai-form-card"><h3>输入信息</h3><label>性别<div class="sub-options"><span class="selected">男</span><span>女</span></div></label><label>出生年月<input value="2016-04" /></label><div class="ai-input-grid"><label>身高<div class="unit-input"><input value="142" inputmode="decimal" /><b>cm</b></div></label><label>体重<div class="unit-input"><input value="39" inputmode="decimal" /><b>kg</b></div></label></div><button class="primary full" type="button" @click="showHeightWeightResult">生成评价结果</button></section>
-          <section v-if="heightWeightResultVisible" class="ai-result-card"><div class="ai-result-head"><strong>评价结果</strong><span>正常</span></div><div class="ai-result-text"><p><b>BMI：</b>19.3</p><p><b>身高评价：</b>正常</p><p><b>体重评价：</b>正常</p><p><b>生长发育评价：</b>处于同年龄段正常范围</p><h3>建议</h3><p>继续保持规律饮食、充足睡眠和适量运动。</p></div></section>
+          <section v-if="heightWeightResultVisible" class="ai-result-card"><div class="ai-result-head"><strong>评价结果</strong><span>正常</span></div><div class="ai-result-text"><p><b>BMI：</b>19.3</p><p><b>身高评价：</b>正常</p><p><b>体重评价：</b>正常</p><p><b>营养评价：</b>处于同年龄段正常范围</p><h3>建议</h3><p>继续保持规律饮食、充足睡眠和适量运动。</p></div></section>
           <p class="ai-test-note">自测结果仅供家长参考，如对儿童生长发育有疑问，请咨询专业医生。</p>
         </section>
 
         <section v-else-if="page === 'nutritionSurvey'" class="screen ai-test-sub-screen">
           <div class="page-title project-subpage-title"><button type="button" @click="backFromAiTestSubPage"><el-icon><ArrowLeft /></el-icon></button><h2>营养调查</h2><span class="top-placeholder"></span></div>
-          <article class="ai-student-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong></div><span>营养风险</span></article>
+          <article class="ai-student-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong></div></article>
           <section class="ai-info-card"><p>请根据儿童近一周饮食和生活情况填写，系统将生成营养风险评价。</p></section>
           <section class="nutrition-question-card"><h3>营养问卷</h3><article><h4>最近一周是否每天吃早餐？</h4><div class="sub-options"><span class="selected">每天</span><span>偶尔不吃</span><span>经常不吃</span></div></article><article><h4>每日是否摄入蔬菜和水果？</h4><div class="sub-options"><span>充足</span><span class="selected">一般</span><span>较少</span></div></article><article><h4>是否每天饮用奶类或摄入奶制品？</h4><div class="sub-options"><span>每天</span><span class="selected">偶尔</span><span>很少</span></div></article><article><h4>是否经常摄入甜食或含糖饮料？</h4><div class="sub-options"><span>很少</span><span class="selected">每周1-2次</span><span>每周3次以上</span><span>几乎每天</span></div></article><article><h4>肉、蛋、鱼等优质蛋白摄入情况？</h4><div class="sub-options"><span>充足</span><span class="selected">一般</span><span>较少</span></div></article><article><h4>是否存在明显挑食或偏食？</h4><div class="sub-options"><span>无</span><span class="selected">偶尔</span><span>明显</span></div></article><article><h4>运动和睡眠是否规律？</h4><div class="sub-options"><span>规律</span><span class="selected">一般</span><span>不规律</span></div></article><button class="primary full" type="button" @click="showNutritionResult">生成营养评价</button></section>
           <section v-if="nutritionResultVisible" class="ai-result-card nutrition-result-card"><div class="ai-result-head"><strong>营养评价结果</strong><span class="warning">中风险</span></div><div class="ai-result-text"><p><b>营养风险等级：</b>中风险</p><h3>主要问题</h3><p>蔬菜水果摄入不足；奶类摄入不足；含糖饮料摄入偏多。</p><h3>改善建议</h3><p>建议每日保证蔬菜水果摄入，补充奶类或奶制品，减少含糖饮料和高糖零食，保持规律早餐和充足睡眠。</p></div></section>
@@ -2215,7 +2310,19 @@ onBeforeUnmount(() => {
 .consent-content::-webkit-scrollbar-thumb{background:rgba(120,160,160,.28)!important;border-radius:999px!important}
 .consent-content::-webkit-scrollbar-thumb:hover{background:rgba(120,160,160,.42)!important}
 .consent-check{display:flex!important;align-items:center!important;gap:8px!important;padding:0 2px!important;color:#60757C!important;font-size:13px!important}
-.consent-check input{width:16px!important;height:16px!important;padding:0!important;accent-color:#12A8AD!important}
+.consent-check input{width:16px!important;height:16px!important;padding:0!important;accent-color:#12A8AD!important}.consent-signature-section{padding:12px 13px!important;display:flex!important;flex-direction:column!important;gap:9px!important}
+.consent-signature-section h3,.consent-signed-detail h3{margin:0!important;color:#20343A!important;font-size:15px!important;line-height:1.35!important}
+.signature-pad{height:132px!important;position:relative!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#fff!important;overflow:hidden!important;touch-action:none!important}
+.signature-pad canvas{width:100%!important;height:100%!important;display:block!important;touch-action:none!important}
+.signature-pad span{position:absolute!important;left:0!important;right:0!important;top:50%!important;transform:translateY(-50%)!important;text-align:center!important;color:#A1AFB3!important;font-size:13px!important;pointer-events:none!important}
+.signature-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+.signature-actions button{height:36px!important;border-radius:10px!important;font-size:13px!important}
+.consent-signed-detail{display:flex!important;flex-direction:column!important;gap:8px!important;padding:12px 13px!important;background:#fff!important}
+.consent-signed-detail p{display:flex!important;justify-content:space-between!important;gap:12px!important;color:#60757C!important;font-size:13px!important;line-height:1.5!important}
+.consent-signed-detail em{font-style:normal!important;color:#8A9CA1!important}
+.consent-signed-detail b{color:#20343A!important;font-size:13px!important}
+.signed-signature{display:flex!important;flex-direction:column!important;gap:7px!important}
+.signed-signature img{width:100%!important;height:96px!important;object-fit:contain!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#F8FCFB!important;display:block!important}
 .sub-note-list{margin:0!important;padding-left:18px!important;color:#60757C!important;font-size:13px!important;line-height:1.7!important}
 .sub-task-list{display:flex!important;flex-direction:column!important;gap:9px!important}
 .sub-task-list article{min-height:64px!important;padding:12px 13px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 10px!important;align-items:center!important}
