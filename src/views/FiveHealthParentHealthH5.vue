@@ -72,6 +72,7 @@ const activeReportDoc = ref(null)
 const lisArchiveExpanded = ref(false)
 const pacsArchiveExpanded = ref(false)
 const specialtyReportExpanded = ref([])
+const activeProjectTrend = ref(null)
 const rehabAppointments = reactive([
   { time: '04月16日 周二 16:30', item: '视觉训练｜李老师', status: '已预约', action: '变更预约' },
   { time: '04月19日 周五 16:30', item: '视觉训练｜李老师', status: '待确认', action: '确认预约' },
@@ -484,7 +485,15 @@ const specialProjects = ref([
       { title: '家庭饮食记录', desc: '签署后开放提交', state: 'not_started' },
       { title: '结案评估', desc: '完成阶段管理后结案', state: 'not_started' },
     ],
-    report: { time: '待开放', conclusion: '签署知情同意书后开放营养评估报告。', problems: ['BMI 偏高', '蔬果摄入不足'], advice: '签署后查看医生建议', lis: [], pacs: [], trends: [] },
+    report: {
+      time: '2026-05-20', conclusion: '体重与身高增长总体协调，BMI 平稳，建议继续观察饮食结构与运动情况。', problems: ['BMI 需持续观察', '蔬果摄入不足'], advice: '保持规律膳食，增加户外活动，按月记录身高体重', lis: [], pacs: [],
+      trends: [
+        { name: '年龄别体重', value: '14.8 → 15.8 kg', change: '较上次 +1.0kg', tone: 'good', conclusion: '体重持续增长，处于正常增长区间。', detailNote: '', plot: '10,36 24,27 38,22 52,19 66,16 80,13 94,10 110,8', points: [{ date: '0月', x: 10, y: 36, value: '3.2kg' }, { date: '6月', x: 24, y: 27, value: '8.0kg' }, { date: '1岁', x: 38, y: 22, value: '10.0kg' }, { date: '18月', x: 52, y: 19, value: '11.3kg' }, { date: '2岁', x: 66, y: 16, value: '12.5kg' }, { date: '30月', x: 80, y: 13, value: '13.6kg' }, { date: '3岁', x: 94, y: 10, value: '14.8kg' }, { date: '42月', x: 110, y: 8, value: '15.8kg' }] },
+        { name: '年龄别身高', value: '96 → 100 cm', change: '较上次 +4cm', tone: 'good', conclusion: '身高增长平稳。', detailNote: '遗传身高参考：170-180cm。', plot: '10,38 24,28 38,23 52,19 66,16 80,13 94,10 110,8', points: [{ date: '0月', x: 10, y: 38, value: '50cm' }, { date: '6月', x: 24, y: 28, value: '68cm' }, { date: '1岁', x: 38, y: 23, value: '77cm' }, { date: '18月', x: 52, y: 19, value: '83cm' }, { date: '2岁', x: 66, y: 16, value: '88cm' }, { date: '30月', x: 80, y: 13, value: '92cm' }, { date: '3岁', x: 94, y: 10, value: '96cm' }, { date: '42月', x: 110, y: 8, value: '100cm' }] },
+        { name: '身高别体重', value: '14.7 → 15.8 kg', change: '较上次 +1.1kg', tone: 'good', conclusion: '身高对应体重增长协调。', detailNote: '', plot: '10,36 24,31 38,25 52,19 66,16 80,12 94,10 110,8', points: [{ date: '50cm', x: 10, y: 36, value: '3.5kg' }, { date: '55cm', x: 24, y: 31, value: '4.7kg' }, { date: '62cm', x: 38, y: 25, value: '6.5kg' }, { date: '73cm', x: 52, y: 19, value: '9.2kg' }, { date: '77cm', x: 66, y: 16, value: '10.0kg' }, { date: '93cm', x: 80, y: 12, value: '13.7kg' }, { date: '97cm', x: 94, y: 10, value: '14.7kg' }, { date: '101cm', x: 110, y: 8, value: '15.8kg' }] },
+        { name: '年龄别 BMI', value: '15.6 → 15.4', change: '较上次 -0.2', tone: 'warn', conclusion: 'BMI 整体平稳，轻微下降，需结合身高体重继续观察。', detailNote: '', plot: '10,34 24,12 38,17 52,22 66,25 80,26 94,28 110,30', points: [{ date: '0月', x: 10, y: 34, value: '13.8' }, { date: '6月', x: 24, y: 12, value: '17.4' }, { date: '1岁', x: 38, y: 17, value: '16.9' }, { date: '18月', x: 52, y: 22, value: '16.2' }, { date: '2岁', x: 66, y: 25, value: '15.9' }, { date: '30月', x: 80, y: 26, value: '15.8' }, { date: '3岁', x: 94, y: 28, value: '15.6' }, { date: '42月', x: 110, y: 30, value: '15.4' }] },
+      ],
+    },
     services: [],
   },
 ])
@@ -693,6 +702,12 @@ function viewSpecialtyReport() {
 }
 function toggleSpecialtyReportGroup(key) {
   specialtyReportExpanded.value = specialtyReportExpanded.value.includes(key) ? specialtyReportExpanded.value.filter((item) => item !== key) : [...specialtyReportExpanded.value, key]
+}
+function openProjectTrend(item) {
+  activeProjectTrend.value = item
+}
+function closeProjectTrend() {
+  activeProjectTrend.value = null
 }
 function previewSpecialtyAttachment() {
   projectArchiveToast.value = '附件预览暂未开放'
@@ -1365,7 +1380,7 @@ onBeforeUnmount(() => {
 
           <template v-if="activeProjectPanel === 'flow'">
               <div class="project-report-group-title"><i></i><strong>关键指标趋势</strong></div>
-              <section class="trend-grid project-trend-grid"><article v-for="item in currentProject.report.trends" :key="item.name" class="trend-card"><div class="trend-card-head"><strong>{{ item.name }}</strong></div><b>{{ item.value }}</b><small :class="['trend-change', item.tone]">{{ item.change }}</small><svg class="mini-trend-chart" viewBox="0 0 120 56" preserveAspectRatio="none"><line x1="8" y1="18" x2="112" y2="18" class="grid-line" /><line x1="8" y1="34" x2="112" y2="34" class="grid-line" /><polyline :points="item.plot" /><circle v-for="(point, index) in item.points" :key="point.date" :cx="point.x" :cy="point.y" :class="['trend-point', { latest: index === item.points.length - 1 }]" r="2.4" /><text v-for="point in item.points" :key="point.date + '-date'" :x="point.x" y="52">{{ point.date }}</text></svg></article></section>
+              <section class="trend-grid project-trend-grid"><article v-for="item in currentProject.report.trends" :key="item.name" :class="['trend-card', { 'clickable-trend-card': currentProject.id === 'weight' }]" @click="currentProject.id === 'weight' && openProjectTrend(item)"><div class="trend-card-head"><strong>{{ item.name }}</strong></div><b>{{ item.value }}</b><small :class="['trend-change', item.tone]">{{ item.change }}</small><svg class="mini-trend-chart" viewBox="0 0 120 56" preserveAspectRatio="none"><line x1="8" y1="18" x2="112" y2="18" class="grid-line" /><line x1="8" y1="34" x2="112" y2="34" class="grid-line" /><polyline :points="item.plot" /><circle v-for="(point, index) in item.points" :key="point.date" :cx="point.x" :cy="point.y" :class="['trend-point', { latest: index === item.points.length - 1 }]" r="2.4" /><text v-for="point in item.points" :key="point.date + '-date'" :x="point.x" y="52">{{ point.date }}</text></svg></article></section>
             <div class="project-report-group-title"><i></i><strong>专案任务</strong></div>
             <section class="flow-timeline"><button v-for="item in currentProject.flow" :key="item.title" :class="['flow-row', item.state, { clickable: canOpenFlowNode(item) }]" type="button" :disabled="!canOpenFlowNode(item)" @click="openFlowNode(item)"><i></i><div><strong>{{ item.title }}</strong><p>{{ item.desc }}</p></div><span v-if="item.tip" class="flow-tip">{{ item.tip }}</span><b v-if="canOpenFlowNode(item)">›</b></button></section>
           </template>
@@ -1386,6 +1401,7 @@ onBeforeUnmount(() => {
             <template v-else><button v-for="item in currentProject.services" :key="item.title" class="family-service-entry" type="button" @click="openFamilyServicePage(item.action)"><span><strong>{{ item.title }}</strong></span><em>进入 &gt;</em></button></template>
           </template>
           </template>
+          <section v-if="activeProjectTrend" class="project-trend-detail-mask" @click.self="closeProjectTrend"><article class="project-trend-detail-panel"><header><button type="button" @click="closeProjectTrend"><el-icon><ArrowLeft /></el-icon></button><h3>{{ activeProjectTrend.name }}</h3></header><div class="trend-detail-chart"><svg viewBox="0 0 120 80" preserveAspectRatio="none"><line x1="8" y1="18" x2="112" y2="18" class="reference-line" /><line x1="8" y1="34" x2="112" y2="34" class="reference-line" /><line x1="8" y1="50" x2="112" y2="50" class="reference-line" /><polyline :points="activeProjectTrend.plot" /><circle v-for="(point, index) in activeProjectTrend.points" :key="point.date" :cx="point.x" :cy="point.y" :class="{ latest: index === activeProjectTrend.points.length - 1 }" r="2.8" /><text v-for="point in activeProjectTrend.points" :key="point.date + '-detail'" :x="point.x" y="72">{{ point.date }}</text></svg></div><div class="trend-detail-summary"><p><em>当前值变化</em><b>{{ activeProjectTrend.value }}</b></p><p><em>较上次</em><b :class="['trend-change', activeProjectTrend.tone]">{{ activeProjectTrend.change }}</b></p></div><p class="trend-detail-conclusion">{{ activeProjectTrend.conclusion }}</p><p v-if="activeProjectTrend.detailNote" class="trend-detail-note">{{ activeProjectTrend.detailNote }}</p></article></section>
         </section>
         <section v-else-if="page === 'projectSubPage'" class="screen project-subpage-screen">
           <div class="page-title project-subpage-title"><button type="button" @click="backToProjectFlow"><el-icon><ArrowLeft /></el-icon></button><h2>{{ projectSubPageTitle }}</h2><span class="top-placeholder"></span></div>
@@ -2655,7 +2671,34 @@ onBeforeUnmount(() => {
 .manual-single-field select,.manual-single-field input{width:100%!important;min-width:0!important;height:36px!important;padding:0 9px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:8px!important;background:#FAFEFD!important;color:#20343A!important;font-size:13px!important;font-weight:700!important;box-shadow:none!important}
 .project-subpage-screen .sub-section.is-editing .manual-single-field select,.project-subpage-screen .sub-section.is-editing .manual-single-field input{border-color:rgba(18,168,173,.42)!important;background:#fff!important;box-shadow:0 0 0 2px rgba(18,168,173,.06)!important}
 @media(max-width:360px){.manual-score-grid{grid-template-columns:1fr!important}.manual-special-head{align-items:flex-start!important;flex-direction:column!important}}
+
+/* project trend detail panel */
+.clickable-trend-card{cursor:pointer!important}
+.clickable-trend-card:active{background:#F0FCFA!important}
+.project-trend-detail-mask{position:absolute!important;inset:54px 0 0!important;z-index:40!important;background:rgba(32,52,58,.24)!important;display:flex!important;align-items:flex-end!important;padding:14px!important}
+.project-trend-detail-panel{width:100%!important;max-height:82%!important;overflow:auto!important;border-radius:16px!important;background:#fff!important;box-shadow:0 14px 34px rgba(32,52,58,.18)!important;padding:14px!important;color:#20343A!important}
+.project-trend-detail-panel header{height:34px!important;display:grid!important;grid-template-columns:32px minmax(0,1fr) 32px!important;align-items:center!important;gap:8px!important;margin-bottom:10px!important}
+.project-trend-detail-panel header button{width:30px!important;height:30px!important;border:0!important;background:transparent!important;color:#20343A!important;padding:0!important;box-shadow:none!important}
+.project-trend-detail-panel header h3{margin:0!important;text-align:center!important;font-size:17px!important;font-weight:800!important;line-height:1.25!important}
+.trend-detail-chart{height:210px!important;padding:12px 8px!important;border-radius:12px!important;background:#F8FCFB!important;border:1px solid rgba(216,238,234,.72)!important}
+.trend-detail-chart svg{width:100%!important;height:100%!important;overflow:visible!important}
+.trend-detail-chart .reference-line{stroke:#E1EBEA!important;stroke-width:1!important;stroke-dasharray:4 3!important}
+.trend-detail-chart polyline{fill:none!important;stroke:#2D85F5!important;stroke-width:2.2!important;stroke-linecap:round!important;stroke-linejoin:round!important}
+.trend-detail-chart circle{fill:#fff!important;stroke:#2D85F5!important;stroke-width:1.8!important}
+.trend-detail-chart circle.latest{fill:#2D85F5!important;stroke:#2D85F5!important}
+.trend-detail-chart text{fill:#8A9CA1!important;font-size:7px!important;text-anchor:middle!important}
+.trend-detail-summary{margin-top:10px!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+.trend-detail-summary p{margin:0!important;padding:10px!important;border-radius:10px!important;background:#F7FBFA!important}
+.trend-detail-summary em{display:block!important;color:#8A9CA1!important;font-size:12px!important;font-style:normal!important}
+.trend-detail-summary b{display:block!important;margin-top:5px!important;color:#20343A!important;font-size:14px!important;line-height:1.35!important}
+.trend-detail-conclusion,.trend-detail-note{margin:10px 0 0!important;padding:10px!important;border-radius:10px!important;background:#F0FCFA!important;color:#31565C!important;font-size:13px!important;line-height:1.55!important}
+.trend-detail-note{background:#FFF8EE!important;color:#A76118!important}
 </style>
+
+
+
+
+
 
 
 
