@@ -75,8 +75,23 @@ const specialtyReportExpanded = ref([])
 const activeProjectTrend = ref(null)
 const rehabAppointments = reactive([
   { time: '04月16日 周二 16:30', item: '视觉训练｜李老师', status: '已预约', action: '变更预约' },
-  { time: '04月19日 周五 16:30', item: '视觉训练｜李老师', status: '待确认', action: '确认预约' },
 ])
+const rehabLeaves = reactive([
+  { time: '04月12日 16:30', reason: '学校活动冲突', status: '已同意' },
+  { time: '04月23日 16:30', reason: '家庭行程待确认', status: '待确认' },
+])
+const rehabScheduleGroups = [
+  { date: '04月16日 周二', slots: ['15:30', '16:30', '17:30'] },
+  { date: '04月18日 周四', slots: ['15:30', '16:30', '17:30'] },
+  { date: '04月22日 周一', slots: ['15:00', '16:00', '17:00'] },
+  { date: '04月25日 周四', slots: ['15:30', '16:30', '17:30'] },
+]
+const showRehabAppointmentDialog = ref(false)
+const rehabAppointmentMode = ref('create')
+const editingRehabAppointmentIndex = ref(-1)
+const selectedRehabSlot = ref('')
+const showRehabLeaveDialog = ref(false)
+const rehabLeaveForm = reactive({ time: '04月16日 16:30', reason: '学校活动冲突', remark: '' })
 const reportZoom = ref(1)
 const reportImageX = ref(0)
 const reportImageY = ref(0)
@@ -772,19 +787,53 @@ function showProjectToast(message) {
 function previewArchiveDoc() {
   showProjectToast('查看检查单据')
 }
-function handleRehabAppointment(index) {
-  const appointment = rehabAppointments[index]
-  if (!appointment) return
-  if (appointment.status === '待确认') {
-    appointment.status = '已预约'
-    appointment.action = '变更预约'
-    showProjectToast('预约已确认')
+function formatRehabSlot(group, slot) {
+  return `${group.date} ${slot}`
+}
+function openRehabAppointmentDialog(mode = 'create', index = -1) {
+  rehabAppointmentMode.value = mode
+  editingRehabAppointmentIndex.value = index
+  selectedRehabSlot.value = mode === 'change' && rehabAppointments[index] ? rehabAppointments[index].time : ''
+  showRehabAppointmentDialog.value = true
+}
+function selectRehabSlot(group, slot) {
+  selectedRehabSlot.value = formatRehabSlot(group, slot)
+}
+function closeRehabAppointmentDialog() {
+  showRehabAppointmentDialog.value = false
+}
+function submitRehabAppointment() {
+  if (!selectedRehabSlot.value) {
+    showProjectToast('请选择预约时间')
     return
   }
-  showProjectToast('变更预约功能待开放')
+  if (rehabAppointmentMode.value === 'change' && rehabAppointments[editingRehabAppointmentIndex.value]) {
+    rehabAppointments[editingRehabAppointmentIndex.value].time = selectedRehabSlot.value
+    showProjectToast('预约时间已变更')
+  } else {
+    const existed = rehabAppointments.find(item => item.item === '视觉训练｜李老师')
+    if (existed) existed.time = selectedRehabSlot.value
+    else rehabAppointments.push({ time: selectedRehabSlot.value, item: '视觉训练｜李老师', status: '已预约', action: '变更预约' })
+    showProjectToast('预约已提交')
+  }
+  closeRehabAppointmentDialog()
+}
+function handleRehabAppointment(index) {
+  openRehabAppointmentDialog('change', index)
 }
 function requestRehabLeave() {
-  showProjectToast('请假申请功能待开放')
+  rehabLeaveForm.time = rehabAppointments[0]?.time?.replace(' 周二', '').replace(' 周四', '').replace(' 周一', '').replace(' 周五', '') || '04月16日 16:30'
+  rehabLeaveForm.reason = '学校活动冲突'
+  rehabLeaveForm.remark = ''
+  showRehabLeaveDialog.value = true
+}
+function closeRehabLeaveDialog() {
+  showRehabLeaveDialog.value = false
+}
+function submitRehabLeave() {
+  rehabLeaves.push({ time: rehabLeaveForm.time, reason: rehabLeaveForm.reason, status: '待确认' })
+  showRehabLeaveDialog.value = false
+  showProjectToast('请假申请已提交')
 }
 function sendFamilyMessage() {
   showProjectToast('留言已发送')
@@ -1405,9 +1454,11 @@ onBeforeUnmount(() => {
             <template v-else>
               <p v-if="projectArchiveToast" class="project-submit-tip archive-toast">{{ projectArchiveToast }}</p>
               <section class="rehab-plan-card project-rehab-plan"><div class="rehab-card-head"><strong>康复计划</strong><span>执行中</span></div><div class="rehab-plan-main"><b>视觉功能训练</b><p>改善调节能力，建立稳定用眼习惯</p></div><div class="rehab-info-grid"><p><em>频次</em><b>每周 2 次</b></p><p><em>周期</em><b>4 周</b></p></div></section>
-              <section class="rehab-panel"><div class="project-report-group-title"><i></i><strong>康复预约</strong></div><article v-for="(item, index) in rehabAppointments" :key="item.time" class="rehab-appointment-row"><div><strong>{{ item.time }}</strong><p>{{ item.item }}</p></div><span :class="{ pending: item.status === '待确认' }">{{ item.status }}</span><button type="button" @click="handleRehabAppointment(index)">{{ item.action }}</button></article></section>
-              <section class="rehab-panel"><div class="rehab-panel-head"><div class="project-report-group-title"><i></i><strong>请假申请</strong></div><button type="button" @click="requestRehabLeave">发起请假</button></div><div class="rehab-leave-list"><p><span>04月12日 16:30</span><b>学校活动冲突</b><em>已同意</em></p><p><span>04月23日 16:30</span><b>家庭行程待确认</b><em class="pending">待确认</em></p></div></section>
+              <section class="rehab-panel"><div class="rehab-panel-head"><div class="project-report-group-title"><i></i><strong>康复预约</strong></div><button type="button" @click="openRehabAppointmentDialog('create')">预约</button></div><article v-for="(item, index) in rehabAppointments" :key="item.time" class="rehab-appointment-row"><div><strong>{{ item.time }}</strong><p>{{ item.item }}</p></div><span>{{ item.status }}</span><button type="button" @click="handleRehabAppointment(index)">变更预约</button></article></section>
+              <section class="rehab-panel"><div class="rehab-panel-head"><div class="project-report-group-title"><i></i><strong>请假申请</strong></div><button type="button" @click="requestRehabLeave">发起请假</button></div><div class="rehab-leave-list"><p v-for="item in rehabLeaves" :key="item.time + item.reason"><span>{{ item.time }}</span><b>{{ item.reason }}</b><em :class="{ pending: item.status === '待确认' }">{{ item.status }}</em></p></div></section>
               <section class="rehab-teacher-card"><div><strong>李老师</strong><p>视觉训练师</p></div><p><em>擅长</em><b>儿童视觉功能训练、用眼行为指导</b></p><p><em>联系电话</em><b>138****5678</b></p></section>
+              <section v-if="showRehabAppointmentDialog" class="rehab-dialog-mask" @click.self="closeRehabAppointmentDialog"><article class="rehab-dialog"><header><strong>{{ rehabAppointmentMode === 'change' ? '变更预约时间' : '选择预约时间' }}</strong></header><div class="rehab-schedule-list"><section v-for="group in rehabScheduleGroups" :key="group.date"><h4>{{ group.date }}</h4><div><button v-for="slot in group.slots" :key="group.date + slot" type="button" :class="{ selected: selectedRehabSlot === formatRehabSlot(group, slot), current: rehabAppointmentMode === 'change' && rehabAppointments[editingRehabAppointmentIndex]?.time === formatRehabSlot(group, slot) }" @click="selectRehabSlot(group, slot)"><span>{{ slot }}</span><em v-if="rehabAppointmentMode === 'change' && rehabAppointments[editingRehabAppointmentIndex]?.time === formatRehabSlot(group, slot)">当前预约</em></button></div></section></div><footer><button type="button" @click="closeRehabAppointmentDialog">取消</button><button type="button" @click="submitRehabAppointment">{{ rehabAppointmentMode === 'change' ? '确认变更' : '确认预约' }}</button></footer></article></section>
+              <section v-if="showRehabLeaveDialog" class="rehab-dialog-mask" @click.self="closeRehabLeaveDialog"><article class="rehab-dialog rehab-leave-dialog"><header><strong>发起请假</strong></header><label>请假日期/预约时间<input v-model="rehabLeaveForm.time" /></label><label>请假原因<select v-model="rehabLeaveForm.reason"><option>学校活动冲突</option><option>身体不适</option><option>家庭原因</option><option>其他</option></select></label><label>备注说明<textarea v-model="rehabLeaveForm.remark" rows="3" placeholder="可填写补充说明"></textarea></label><footer><button type="button" @click="closeRehabLeaveDialog">取消</button><button type="button" @click="submitRehabLeave">提交请假</button></footer></article></section>
             </template>
           </template>
 
@@ -1564,8 +1615,8 @@ onBeforeUnmount(() => {
         <section v-else-if="page === 'heightWeightTest'" class="screen ai-test-sub-screen">
           <div class="page-title project-subpage-title"><button type="button" @click="backFromAiTestSubPage"><el-icon><ArrowLeft /></el-icon></button><h2>身高体重自测</h2><span class="top-placeholder"></span></div>
           <article class="ai-student-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong></div></article>
-          <section class="ai-form-card"><h3>输入信息</h3><label>性别<div class="sub-options"><span class="selected">男</span><span>女</span></div></label><label>出生年月<input value="2016-04" /></label><div class="ai-input-grid"><label>身高<div class="unit-input"><input value="142" inputmode="decimal" /><b>cm</b></div></label><label>体重<div class="unit-input"><input value="39" inputmode="decimal" /><b>kg</b></div></label></div><button class="primary full" type="button" @click="showHeightWeightResult">生成评价结果</button></section>
-          <section v-if="heightWeightResultVisible" class="ai-result-card"><div class="ai-result-head"><strong>评价结果</strong><span>正常</span></div><div class="ai-result-text"><p><b>BMI：</b>19.3</p><p><b>身高评价：</b>正常</p><p><b>体重评价：</b>正常</p><p><b>营养评价：</b>处于同年龄段正常范围</p><h3>建议</h3><p>继续保持规律饮食、充足睡眠和适量运动。</p></div></section>
+          <section class="ai-form-card"><h3>输入信息</h3><label>性别<div class="sub-options"><span class="selected">男</span><span>女</span></div></label><label>出生年月<input value="2016-04" /></label><div class="ai-input-grid"><label>身高<div class="unit-input"><input value="142" inputmode="decimal" /><b>cm</b></div></label><label>体重<div class="unit-input"><input value="39" inputmode="decimal" /><b>kg</b></div></label></div><button class="primary full" type="button" @click="showHeightWeightResult">AI测评</button></section>
+          <section v-if="heightWeightResultVisible" class="ai-result-card"><div class="ai-result-head"><strong>测评结果</strong><span>正常</span></div><div class="ai-result-text"><p><b>BMI：</b>19.3</p><p><b>身高评价：</b>正常</p><p><b>体重评价：</b>正常</p><p><b>营养评价：</b>处于同年龄段正常范围</p><h3>建议</h3><p>继续保持规律饮食、充足睡眠和适量运动。</p></div></section>
           <p class="ai-test-note">自测结果仅供家长参考，如对儿童生长发育有疑问，请咨询专业医生。</p>
         </section>
 
@@ -1573,8 +1624,8 @@ onBeforeUnmount(() => {
           <div class="page-title project-subpage-title"><button type="button" @click="backFromAiTestSubPage"><el-icon><ArrowLeft /></el-icon></button><h2>营养调查</h2><span class="top-placeholder"></span></div>
           <article class="ai-student-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong></div></article>
           <section class="ai-info-card"><p>请根据儿童近一周饮食和生活情况填写，系统将生成营养风险评价。</p></section>
-          <section class="nutrition-question-card"><h3>营养问卷</h3><article><h4>最近一周是否每天吃早餐？</h4><div class="sub-options"><span class="selected">每天</span><span>偶尔不吃</span><span>经常不吃</span></div></article><article><h4>每日是否摄入蔬菜和水果？</h4><div class="sub-options"><span>充足</span><span class="selected">一般</span><span>较少</span></div></article><article><h4>是否每天饮用奶类或摄入奶制品？</h4><div class="sub-options"><span>每天</span><span class="selected">偶尔</span><span>很少</span></div></article><article><h4>是否经常摄入甜食或含糖饮料？</h4><div class="sub-options"><span>很少</span><span class="selected">每周1-2次</span><span>每周3次以上</span><span>几乎每天</span></div></article><article><h4>肉、蛋、鱼等优质蛋白摄入情况？</h4><div class="sub-options"><span>充足</span><span class="selected">一般</span><span>较少</span></div></article><article><h4>是否存在明显挑食或偏食？</h4><div class="sub-options"><span>无</span><span class="selected">偶尔</span><span>明显</span></div></article><article><h4>运动和睡眠是否规律？</h4><div class="sub-options"><span>规律</span><span class="selected">一般</span><span>不规律</span></div></article><button class="primary full" type="button" @click="showNutritionResult">生成营养评价</button></section>
-          <section v-if="nutritionResultVisible" class="ai-result-card nutrition-result-card"><div class="ai-result-head"><strong>营养评价结果</strong><span class="warning">中风险</span></div><div class="ai-result-text"><p><b>营养风险等级：</b>中风险</p><h3>主要问题</h3><p>蔬菜水果摄入不足；奶类摄入不足；含糖饮料摄入偏多。</p><h3>改善建议</h3><p>建议每日保证蔬菜水果摄入，补充奶类或奶制品，减少含糖饮料和高糖零食，保持规律早餐和充足睡眠。</p></div></section>
+          <section class="nutrition-question-card"><h3>营养问卷</h3><article><h4>最近一周是否每天吃早餐？</h4><div class="sub-options"><span class="selected">每天</span><span>偶尔不吃</span><span>经常不吃</span></div></article><article><h4>每日是否摄入蔬菜和水果？</h4><div class="sub-options"><span>充足</span><span class="selected">一般</span><span>较少</span></div></article><article><h4>是否每天饮用奶类或摄入奶制品？</h4><div class="sub-options"><span>每天</span><span class="selected">偶尔</span><span>很少</span></div></article><article><h4>是否经常摄入甜食或含糖饮料？</h4><div class="sub-options"><span>很少</span><span class="selected">每周1-2次</span><span>每周3次以上</span><span>几乎每天</span></div></article><article><h4>肉、蛋、鱼等优质蛋白摄入情况？</h4><div class="sub-options"><span>充足</span><span class="selected">一般</span><span>较少</span></div></article><article><h4>是否存在明显挑食或偏食？</h4><div class="sub-options"><span>无</span><span class="selected">偶尔</span><span>明显</span></div></article><article><h4>运动和睡眠是否规律？</h4><div class="sub-options"><span>规律</span><span class="selected">一般</span><span>不规律</span></div></article><button class="primary full" type="button" @click="showNutritionResult">AI测评</button></section>
+          <section v-if="nutritionResultVisible" class="ai-result-card nutrition-result-card"><div class="ai-result-head"><strong>测评结果</strong><span class="warning">中风险</span></div><div class="ai-result-text"><p><b>营养风险等级：</b>中风险</p><h3>主要问题</h3><p>蔬菜水果摄入不足；奶类摄入不足；含糖饮料摄入偏多。</p><h3>改善建议</h3><p>建议每日保证蔬菜水果摄入，补充奶类或奶制品，减少含糖饮料和高糖零食，保持规律早餐和充足睡眠。</p></div></section>
         </section>
 
         <section v-else-if="page === 'students'" class="screen students-screen"><div class="page-title"><button type="button" @click="backFromStudents"><el-icon><ArrowLeft /></el-icon></button><h2>就诊人管理</h2></div><article v-for="item in students" :key="item.id" class="student-card student-manage-card"><div class="student-manage-info"><div class="student-card-title"><strong>{{ item.name }}</strong><span v-if="item.default">默认学生</span></div><p>{{ item.age }} 岁</p><p>{{ item.school }}｜{{ item.className }}</p></div><div class="student-actions"><button v-if="!item.default" type="button" class="student-action-default" @click="switchStudent(item.id)">设为默认</button><span v-else class="student-action-default current">默认学生</span><button type="button" @click="editStudent(item.id)">编辑</button><button type="button" class="danger" @click="requestDeleteStudent(item.id)">删除</button></div></article><button :class="['primary full add-student-btn', { muted: showBindForm }]" type="button" @click="openBindForm">添加学生</button><article v-if="showBindForm" class="form-card bind-student-form"><header><div><strong>绑定学生信息</strong><p>请填写学生身份信息，确认后完成绑定</p></div><button type="button" @click="requestCancelBind">取消添加</button></header><label>学生姓名<input v-model="bindForm.name" /><small v-if="bindErrors.name" class="field-error">{{ bindErrors.name }}</small></label><label>身份证号 / 学号<input v-model="bindForm.code" /><small v-if="bindErrors.identity" class="field-error">{{ bindErrors.identity }}</small></label><label>就诊卡号<input v-model="bindForm.cardNo" /></label><label>所属学校<input v-model="bindForm.school" /></label><label>所属班级<input v-model="bindForm.className" /></label><label>家长手机号<input v-model="bindForm.phone" inputmode="tel" /></label><button class="primary full" type="button" @click="confirmBind">确认绑定学生</button></article></section>
@@ -2715,22 +2766,59 @@ onBeforeUnmount(() => {
 .specialty-note-grid.compact p{padding:8px 9px!important;overflow-wrap:anywhere!important}
 .specialty-other-grid b{color:#12A8AD!important}
 
-/* followup exam plan */
+/* followup exam plan timeline */
 .followup-exam-plan{gap:10px!important}
-.exam-plan-list{display:flex!important;flex-direction:column!important;gap:0!important}
-.exam-plan-list article{padding:11px 0!important;border-top:1px solid rgba(216,238,234,.62)!important}
-.exam-plan-list article:first-child{border-top:0!important;padding-top:0!important}
-.exam-plan-list article.current{margin:0 -6px!important;padding:11px 6px!important;border-radius:8px!important;background:#FFF9F0!important;border-top-color:transparent!important}
+.exam-plan-list{position:relative!important;display:flex!important;flex-direction:column!important;gap:0!important}
+.exam-plan-list article{position:relative!important;margin:0!important;padding:11px 0 11px 30px!important;border-top:0!important}
+.exam-plan-list article::before{content:''!important;position:absolute!important;left:8px!important;top:0!important;bottom:0!important;width:1px!important;background:rgba(216,238,234,.95)!important}
+.exam-plan-list article:first-child::before{top:16px!important}
+.exam-plan-list article:last-child::before{bottom:calc(100% - 16px)!important}
+.exam-plan-list article::after{content:''!important;position:absolute!important;left:3px!important;top:13px!important;width:11px!important;height:11px!important;border-radius:50%!important;background:#D7E2E1!important;border:2px solid #fff!important;box-shadow:0 0 0 2px #E7EFEE!important}
+.exam-plan-list article.current{margin:0 -6px!important;padding:12px 6px 12px 36px!important;border-radius:8px!important;background:#FFF9F0!important}
+.exam-plan-list article.current::before{left:14px!important;background:rgba(242,153,74,.28)!important}
+.exam-plan-list article.current::after{left:9px!important;top:14px!important;background:#F2994A!important;box-shadow:0 0 0 4px rgba(242,153,74,.16)!important}
+.exam-plan-list article:has(.exam-plan-status.expired)::before{background:#BFE5DF!important}
+.exam-plan-list article:has(.exam-plan-status.expired)::after{background:#78C8BE!important;box-shadow:0 0 0 2px rgba(120,200,190,.22)!important}
+.exam-plan-list article:has(.exam-plan-status.pending)::after{background:#12A8AD!important;box-shadow:0 0 0 2px rgba(18,168,173,.18)!important}
 .exam-plan-main{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin-bottom:7px!important}
 .exam-plan-main strong{min-width:0!important;color:#20343A!important;font-size:14px!important;font-weight:800!important;line-height:1.35!important}
 .exam-plan-status{flex:none!important;padding:3px 8px!important;border-radius:999px!important;font-size:12px!important;font-weight:800!important;line-height:1.2!important;white-space:nowrap!important}
 .exam-plan-status.current{background:#FFF4E8!important;color:#F2994A!important}
-.exam-plan-status.expired{background:#EEF3F2!important;color:#8A9CA1!important}
+.exam-plan-status.expired{background:#E8F6F4!important;color:#3D8F86!important}
 .exam-plan-status.pending{background:#E4F8F6!important;color:#12A8AD!important}
 .exam-plan-list p{margin:5px 0 0!important;display:grid!important;grid-template-columns:62px minmax(0,1fr)!important;gap:8px!important;align-items:start!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
 .exam-plan-list em{font-style:normal!important;color:#8A9CA1!important;white-space:nowrap!important}
 .exam-plan-list b{min-width:0!important;color:#20343A!important;font-weight:700!important;overflow-wrap:anywhere!important}
+/* rehab appointment dialogs */
+.rehab-dialog-mask{position:absolute!important;inset:0!important;z-index:24!important;display:flex!important;align-items:flex-end!important;justify-content:center!important;background:rgba(32,52,58,.28)!important;padding:14px!important}
+.rehab-dialog{width:100%!important;max-height:82%!important;overflow:auto!important;padding:15px!important;border-radius:18px!important;background:#fff!important;box-shadow:0 -10px 34px rgba(32,52,58,.16)!important}
+.rehab-dialog header{display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:12px!important}
+.rehab-dialog header strong{color:#20343A!important;font-size:17px!important;font-weight:800!important}
+.rehab-schedule-list{display:flex!important;flex-direction:column!important;gap:12px!important}
+.rehab-schedule-list h4{margin:0 0 8px!important;color:#60757C!important;font-size:13px!important;font-weight:800!important}
+.rehab-schedule-list section>div{display:flex!important;flex-wrap:wrap!important;gap:8px!important}
+.rehab-schedule-list button{min-height:34px!important;padding:0 11px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#F7FBFA!important;color:#20343A!important;font-size:13px!important;font-weight:800!important;display:inline-flex!important;align-items:center!important;gap:5px!important}
+.rehab-schedule-list button.selected{border-color:#12A8AD!important;background:#E4F8F6!important;color:#12A8AD!important}
+.rehab-schedule-list button.current em{padding:2px 6px!important;border-radius:999px!important;background:#fff!important;color:#12A8AD!important;font-size:10px!important;font-style:normal!important}
+.rehab-dialog footer{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:14px!important;padding-top:12px!important;border-top:1px solid rgba(216,238,234,.72)!important}
+.rehab-dialog footer button{height:38px!important;border:0!important;border-radius:10px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:13px!important;font-weight:800!important}
+.rehab-dialog footer button:last-child{background:#12A8AD!important;color:#fff!important}
+.rehab-leave-dialog label{display:flex!important;flex-direction:column!important;gap:7px!important;margin-top:10px!important;color:#60757C!important;font-size:13px!important;font-weight:800!important}
+.rehab-leave-dialog input,.rehab-leave-dialog select,.rehab-leave-dialog textarea{width:100%!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:10px!important;background:#FAFEFD!important;color:#20343A!important;font:inherit!important;font-weight:700!important;box-shadow:none!important}
+.rehab-leave-dialog input,.rehab-leave-dialog select{height:38px!important;padding:0 10px!important}
+.rehab-leave-dialog textarea{padding:9px 10px!important;resize:none!important;line-height:1.5!important}
 </style>
+
+
+
+
+
+
+
+
+
+
+
 
 
 
