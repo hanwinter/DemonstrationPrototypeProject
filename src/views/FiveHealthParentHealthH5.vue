@@ -437,6 +437,21 @@ const parentManuals = [
   { title: '复诊前注意事项', source: '儿童眼保健专科', date: '2026-04-10', status: '未阅读', open: false },
   { title: '家庭训练配合说明', source: '视觉训练师', date: '2026-04-12', status: '已阅读', open: false },
 ]
+const followupExamPlans = [
+  { age: '新生儿期', date: '2025-01-22', items: '新生儿家庭访视、体格检查、喂养指导', status: '已到期' },
+  { age: '满月', date: '2025-02-22', items: '体格测量、喂养评估、黄疸观察', status: '已到期' },
+  { age: '3月龄', date: '2025-04-22', items: '体格测量、生长发育评估、喂养指导', status: '已到期' },
+  { age: '6月龄', date: '2025-07-22', items: '体格测量、血红蛋白检测、听力筛查、辅食添加指导', status: '已到期' },
+  { age: '8月龄', date: '2025-09-22', items: '体格测量、生长发育评估、发育筛查', status: '已到期' },
+  { age: '12月龄', date: '2026-01-22', items: '体格测量、血红蛋白检测、生长发育评估、口腔检查', status: '已到期' },
+  { age: '18月龄', date: '2026-07-22', items: '体格测量、生长发育评估、口腔检查、发育筛查', status: '当前' },
+  { age: '24月龄', date: '2027-01-22', items: '体格测量、血红蛋白检测、生长发育评估', status: '待体检' },
+  { age: '30月龄', date: '2027-07-22', items: '体格测量、生长发育评估', status: '待体检' },
+  { age: '36月龄', date: '2028-01-22', items: '体格测量、血红蛋白检测、视力筛查、听力筛查', status: '待体检' },
+  { age: '4岁', date: '2029-01-22', items: '体格测量、视力检查、口腔检查', status: '待体检' },
+  { age: '5岁', date: '2030-01-22', items: '体格测量、血红蛋白检测、视力检查', status: '待体检' },
+  { age: '6岁', date: '2031-01-22', items: '体格测量、血红蛋白检测、视力检查、入学体检', status: '待体检' },
+]
 const followSurveyItems = [
   { title: '4月随访问卷', date: '2026-04-16', status: '待填写' },
   { title: '用眼习惯随访', date: '2026-04-10', status: '已提交' },
@@ -1366,7 +1381,7 @@ onBeforeUnmount(() => {
             <div class="project-detail-main">
               <strong>{{ currentProject.name }}</strong>
               <p>{{ currentProject.specialty }}｜主治医生：{{ currentProject.doctor }}</p>
-              <p>开始日期：{{ currentProject.startDate }}</p>
+              <p>{{ currentProject.id === 'vision' ? '登记日期' : '开始日期' }}：{{ currentProject.startDate }}</p>
 
             </div>
 </article>
@@ -1428,13 +1443,10 @@ onBeforeUnmount(() => {
 
           <template v-else-if="activeProjectSubPage === 'specialtyReport'">
             <article class="specialty-summary-card"><div><strong>{{ currentStudent.name }}｜{{ currentStudent.gender }}｜{{ currentStudent.age }}岁</strong><span>三级 轻度近视</span></div><p><em>诊疗日期</em><b>2026-04-02</b></p><p><em>就诊类型</em><b>校园初筛复查</b></p><p><em>诊断结果</em><b>低度近视、视疲劳</b></p><p><em>建议复查</em><b>3个月后</b></p></article>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('core')"><span><i></i>核心检测数据</span><em>{{ specialtyReportExpanded.includes('core') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('core')" class="specialty-section-body"><div class="specialty-eye-table"><div class="head"><span>项目</span><span>右眼 OD</span><span>左眼 OS</span></div><p><span>裸眼视力</span><b>4.6</b><b>4.7</b></p><p><span>矫正视力</span><b>5.0</b><b>5.0</b></p><p><span>电脑验光</span><b>S -0.75D / C -0.50D / A 180°</b><b>S -1.00D / C -0.25D / A 175°</b></p><p><span>主觉验光</span><b>-0.75D / -0.50D / 180°</b><b>-1.00D / -0.25D / 175°</b></p><p><span>眼轴 AL</span><b>24.10mm</b><b>24.00mm</b></p><p><span>角膜曲率 K1/K2</span><b>42.50D / 43.25D</b><b>42.75D / 43.50D</b></p><p><span>眼压</span><b>15mmHg</b><b>16mmHg</b></p></div><div class="specialty-note-grid"><p><em>视力表类型</em><b>5 分记录法</b></p><p><em>瞳距 PD</em><b>58mm</b></p><p><em>前房深度</em><b>3.12mm</b></p><p><em>晶状体厚度</em><b>3.55mm</b></p><p><em>眼轴评估</em><b>较同龄参考值略偏长</b></p><p><em>远视储备</em><b>+0.25D｜储备不足</b></p><p><em>眼压评估</em><b>正常</b></p></div></div></section>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('diagnosis')"><span><i></i>诊断结论与风险分级</span><em>{{ specialtyReportExpanded.includes('diagnosis') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('diagnosis')" class="specialty-section-body"><div class="specialty-tags"><span>低度近视</span><span>复性散光</span><span>视疲劳</span><span>三级 轻度近视</span></div><p class="specialty-paragraph">林一凡目前双眼裸眼视力下降，屈光检查提示低度近视并伴轻度散光，眼轴长度较同龄儿童略偏长，远视储备不足。结合用眼习惯和家庭风险因素，建议纳入视力健康专案重点随访，持续观察近视进展速度。</p></div></section>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('intervention')"><span><i></i>个性化干预方案</span><em>{{ specialtyReportExpanded.includes('intervention') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('intervention')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>光学矫正方案</em><b>建议验配框架眼镜，上课及看远时佩戴；暂不建议角膜塑形镜。</b></p><p><em>行为干预医嘱</em><b>每日户外活动不少于 2 小时；近距离用眼遵循 20-20-20 原则；控制手机和平板单次使用时长；保持良好读写光照和坐姿。</b></p><p><em>眼部功能训练</em><b>建议进行调节放松训练和远眺训练，每日 2-3 次。</b></p><p><em>药物干预</em><b>暂不使用低浓度阿托品，若 3 个月复查进展明显，再由医生评估。</b></p></div></div></section>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('followup')"><span><i></i>随访、复查与专案管理记录</span><em>{{ specialtyReportExpanded.includes('followup') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('followup')" class="specialty-section-body"><div class="specialty-note-grid"><p><em>建议复查周期</em><b>3 个月</b></p><p><em>下次复查必做项目</em><b>视力、验光、眼轴、眼压</b></p><p><em>转诊指征</em><b>若近视度数增长过快、出现斜视或眼底异常，应转诊上级眼科。</b></p><p><em>家长知情告知</em><b>近视不可逆，防控目标为延缓进展。</b></p><p><em>医师签名</em><b>王医生</b></p><p><em>报告出具日期</em><b>2026-04-02</b></p><p><em>五健专案联动标记</em><b>纳入重点管理</b></p></div></div></section>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('base')"><span><i></i>基础建档信息</span><em>{{ specialtyReportExpanded.includes('base') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('base')" class="specialty-section-body"><div class="specialty-note-grid"><p><em>儿童姓名</em><b>林一凡</b></p><p><em>性别</em><b>男</b></p><p><em>出生日期</em><b>2016-04-18</b></p><p><em>身份证号</em><b>110101201604180018</b></p><p><em>健康档案编号</em><b>FH-2026-0418-001</b></p><p><em>学籍 / 班级</em><b>XJ20260418001 / 五年级2班</b></p><p><em>监护人</em><b>王女士</b></p><p><em>联系电话</em><b>138****1234</b></p><p><em>居住地址</em><b>北京市海淀区某某小区3号楼</b></p><p><em>检查机构</em><b>儿童健康管理中心</b></p><p><em>接诊医师</em><b>王医生</b></p><p><em>检查设备编号</em><b>VIS-AXL-20260402</b></p><p><em>五健专案编号</em><b>VH-VISION-2026-0001</b></p><p><em>既往视力筛查历史</em><b>已调取</b></p></div></div></section>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('history')"><span><i></i>主诉、现病史、高危家族史</span><em>{{ specialtyReportExpanded.includes('history') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('history')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>主诉</em><b>近 2 个月上课看黑板不清，偶有眯眼和视疲劳。</b></p><p><em>现病史</em><b>首次发现视力异常约 3 个月前；既往未配镜；无散瞳验光史；无眼外伤史。</b></p><p><em>高危家族史</em><b>父亲中度近视，母亲高度近视约 650 度；无斜视、先天性眼病和遗传性眼底病家族史。</b></p><p><em>用眼生活习惯</em><b>每日户外约 1 小时，电子产品使用约 1-2 小时，读写距离偏近，偶有夜间开灯不足，坐姿偶有歪斜。</b></p></div></div></section>
-            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('exam')"><span><i></i>眼部常规专科查体</span><em>{{ specialtyReportExpanded.includes('exam') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('exam')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>眼睑、结膜、角膜</em><b>未见明显充血、滤泡、倒睫或角膜损伤。</b></p><p><em>前房、瞳孔</em><b>前房深度正常，瞳孔对光反射灵敏。</b></p><p><em>晶状体</em><b>透明，未见先天混浊。</b></p><p><em>眼底初筛</em><b>视盘边界清，黄斑区未见明显异常。</b></p><p><em>眼位与眼球运动</em><b>遮盖试验未见显性斜视，眼球各方向运动未受限。</b></p><p><em>双眼视功能</em><b>立体视、同时视、融合功能初筛正常。</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('core')"><span><i></i>检测数据</span><em>{{ specialtyReportExpanded.includes('core') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('core')" class="specialty-section-body specialty-core-data"><h4>视力检查</h4><div class="specialty-eye-table"><div class="head"><span>项目</span><span>右眼 OD</span><span>左眼 OS</span></div><p><span>裸眼视力</span><b>4.6（0.4）</b><b>4.7（0.5）</b></p><p><span>矫正视力</span><b>5.0（1.0）</b><b>5.0（1.0）</b></p></div><div class="specialty-note-grid compact"><p><em>戴镜类型</em><b>框架眼镜</b></p><p><em>视力特殊情况备注</em><b>上课看黑板不清，偶有眯眼。</b></p></div><h4>屈光检查</h4><div class="specialty-eye-table"><div class="head"><span>项目</span><span>右眼 OD</span><span>左眼 OS</span></div><p><span>球镜</span><b>-0.75 D</b><b>-1.00 D</b></p><p><span>柱镜</span><b>-0.50 D</b><b>-0.25 D</b></p><p><span>轴位</span><b>180 度</b><b>175 度</b></p><p><span>等效球镜</span><b>-1.00 D</b><b>-1.13 D</b></p></div><div class="specialty-note-grid compact"><p><em>屈光特殊情况备注</em><b>低度近视伴轻度散光，建议结合复查结果持续观察。</b></p></div><h4>视力其他检查</h4><div class="specialty-note-grid compact specialty-other-grid"><p><em>色觉</em><b>正常</b></p><p><em>眼位</em><b>正常</b></p><p><em>结膜炎</em><b>无</b></p><p><em>眼外观</em><b>正常</b></p><p><em>沙眼</em><b>无</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('diagnosis')"><span><i></i>疾病诊断</span><em>{{ specialtyReportExpanded.includes('diagnosis') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('diagnosis')" class="specialty-section-body"><div class="specialty-tags"><span>低度近视</span><span>复性散光</span><span>视疲劳</span><span>三级 轻度近视</span></div><p class="specialty-paragraph">林一凡目前双眼裸眼视力下降，屈光检查提示低度近视并伴轻度散光，眼轴长度较同龄儿童略偏长，远视储备不足。结合用眼习惯和家庭风险因素，建议纳入视力健康专案重点随访，持续观察近视进展速度。</p></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('intervention')"><span><i></i>医生意见</span><em>{{ specialtyReportExpanded.includes('intervention') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('intervention')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>光学矫正方案</em><b>建议验配框架眼镜，上课及看远时佩戴；暂不建议角膜塑形镜。</b></p><p><em>行为干预医嘱</em><b>每日户外活动不少于 2 小时；近距离用眼遵循 20-20-20 原则；控制手机和平板单次使用时长；保持良好读写光照和坐姿。</b></p><p><em>眼部功能训练</em><b>建议进行调节放松训练和远眺训练，每日 2-3 次。</b></p><p><em>药物干预</em><b>暂不使用低浓度阿托品，若 3 个月复查进展明显，再由医生评估。</b></p></div></div></section>
+            <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('exam')"><span><i></i>其他检查</span><em>{{ specialtyReportExpanded.includes('exam') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('exam')" class="specialty-section-body"><div class="specialty-plan-list"><p><em>眼睑、结膜、角膜</em><b>未见明显充血、滤泡、倒睫或角膜损伤。</b></p><p><em>前房、瞳孔</em><b>前房深度正常，瞳孔对光反射灵敏。</b></p><p><em>晶状体</em><b>透明，未见先天混浊。</b></p><p><em>眼底初筛</em><b>视盘边界清，黄斑区未见明显异常。</b></p><p><em>眼位与眼球运动</em><b>遮盖试验未见显性斜视，眼球各方向运动未受限。</b></p><p><em>双眼视功能</em><b>立体视、同时视、融合功能初筛正常。</b></p></div></div></section>
             <section class="specialty-detail-section archive-collapsible specialty-archive-section"><div class="archive-head signup-section-title"><strong>LIS 化验单归档</strong><span>共 {{ currentProject.report.lis.length }} 份</span><button type="button" @click="lisArchiveExpanded = !lisArchiveExpanded">{{ lisArchiveExpanded ? '收起' : '展开' }}</button></div><template v-if="lisArchiveExpanded"><article v-for="item in currentProject.report.lis" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'lis')">查看</button></div><p>{{ item.date }}</p><small>结果摘要：{{ item.summary }}</small></div></article></template></section>
             <section class="specialty-detail-section archive-collapsible specialty-archive-section"><div class="archive-head signup-section-title"><strong>PACS 检查报告归档</strong><span>共 {{ currentProject.report.pacs.length }} 份</span><button type="button" @click="pacsArchiveExpanded = !pacsArchiveExpanded">{{ pacsArchiveExpanded ? '收起' : '展开' }}</button></div><template v-if="pacsArchiveExpanded"><article v-for="item in currentProject.report.pacs" :key="item.name" class="archive-card compact"><div class="archive-info"><div class="archive-title"><strong>{{ item.name }}</strong><button type="button" @click="openReportDoc(item, 'pacs')">查看</button></div><p>{{ item.date }}</p><small>检查部位：{{ item.part }}｜{{ item.summary }}</small></div></article></template></section>
             <section class="specialty-detail-section"><button class="specialty-section-toggle" type="button" @click="toggleSpecialtyReportGroup('attachments')"><span><i></i>附件</span><em>{{ specialtyReportExpanded.includes('attachments') ? '收起' : '展开' }}</em></button><div v-if="specialtyReportExpanded.includes('attachments')" class="specialty-section-body"><div class="specialty-attachment-list"><button type="button" @click="previewSpecialtyAttachment">验光单原始数据截图<span>预览</span></button><button type="button" @click="previewSpecialtyAttachment">眼轴生长对比曲线<span>预览</span></button><button type="button" @click="previewSpecialtyAttachment">视力健康宣教单二维码<span>预览</span></button></div></div></section>
@@ -1450,6 +1462,7 @@ onBeforeUnmount(() => {
             <section class="sub-section followup-ticket followup-notice-time"><small>复诊时间</small><div><strong>2026-04-18 09:30</strong><span>待复诊</span></div></section>
             <section class="sub-section sub-info-list followup-info-list"><p><em>复诊地点：</em><b>眼保健专科门诊</b></p><p><em>复诊科室：</em><b>{{ currentProject.specialty }}</b></p><p><em>主治医生：</em><b>{{ currentProject.doctor }}</b></p><p><em>联系电话：</em><b>138****1234</b></p></section>
             <section class="sub-section followup-projects"><h3>复诊项目</h3><div class="sub-chip-list"><span>视力复查</span><span>屈光检查</span><span>眼轴复测</span><span>用眼行为评估</span></div></section>
+            <section class="sub-section followup-exam-plan"><h3>体检规划</h3><div class="exam-plan-list"><article v-for="item in followupExamPlans" :key="item.age" :class="{ current: item.status === '当前' }"><div class="exam-plan-main"><strong>{{ item.age }}</strong><span :class="['exam-plan-status', item.status === '当前' ? 'current' : item.status === '已到期' ? 'expired' : 'pending']">{{ item.status }}</span></div><p><em>体检日期</em><b>{{ item.date }}</b></p><p><em>检查项目</em><b>{{ item.items }}</b></p></article></div></section>
             <section class="sub-section followup-notes"><h3>注意事项</h3><ol class="sub-note-list"><li>请携带既往检查报告。</li><li>如需散瞳检查，请按医生要求准备。</li><li>建议家长陪同到诊。</li></ol></section>
           </template>
 
@@ -2693,7 +2706,37 @@ onBeforeUnmount(() => {
 .trend-detail-summary b{display:block!important;margin-top:5px!important;color:#20343A!important;font-size:14px!important;line-height:1.35!important}
 .trend-detail-conclusion,.trend-detail-note{margin:10px 0 0!important;padding:10px!important;border-radius:10px!important;background:#F0FCFA!important;color:#31565C!important;font-size:13px!important;line-height:1.55!important}
 .trend-detail-note{background:#FFF8EE!important;color:#A76118!important}
+
+/* specialty core data */
+.specialty-core-data h4{margin:12px 0 0!important;color:#20343A!important;font-size:14px!important;font-weight:800!important;line-height:1.35!important}
+.specialty-core-data h4:first-child{margin-top:12px!important}
+.specialty-core-data .specialty-eye-table{margin-top:8px!important}
+.specialty-note-grid.compact{margin-top:8px!important}
+.specialty-note-grid.compact p{padding:8px 9px!important;overflow-wrap:anywhere!important}
+.specialty-other-grid b{color:#12A8AD!important}
+
+/* followup exam plan */
+.followup-exam-plan{gap:10px!important}
+.exam-plan-list{display:flex!important;flex-direction:column!important;gap:0!important}
+.exam-plan-list article{padding:11px 0!important;border-top:1px solid rgba(216,238,234,.62)!important}
+.exam-plan-list article:first-child{border-top:0!important;padding-top:0!important}
+.exam-plan-list article.current{margin:0 -6px!important;padding:11px 6px!important;border-radius:8px!important;background:#FFF9F0!important;border-top-color:transparent!important}
+.exam-plan-main{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin-bottom:7px!important}
+.exam-plan-main strong{min-width:0!important;color:#20343A!important;font-size:14px!important;font-weight:800!important;line-height:1.35!important}
+.exam-plan-status{flex:none!important;padding:3px 8px!important;border-radius:999px!important;font-size:12px!important;font-weight:800!important;line-height:1.2!important;white-space:nowrap!important}
+.exam-plan-status.current{background:#FFF4E8!important;color:#F2994A!important}
+.exam-plan-status.expired{background:#EEF3F2!important;color:#8A9CA1!important}
+.exam-plan-status.pending{background:#E4F8F6!important;color:#12A8AD!important}
+.exam-plan-list p{margin:5px 0 0!important;display:grid!important;grid-template-columns:62px minmax(0,1fr)!important;gap:8px!important;align-items:start!important;color:#60757C!important;font-size:13px!important;line-height:1.45!important}
+.exam-plan-list em{font-style:normal!important;color:#8A9CA1!important;white-space:nowrap!important}
+.exam-plan-list b{min-width:0!important;color:#20343A!important;font-weight:700!important;overflow-wrap:anywhere!important}
 </style>
+
+
+
+
+
+
 
 
 
