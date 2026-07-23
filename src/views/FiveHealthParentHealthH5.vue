@@ -61,6 +61,7 @@ const consentConfirmed = ref(false)
 const consentSignatureCanvas = ref(null)
 const consentSignatureData = ref('')
 const consentSignatureConfirmed = ref(false)
+const showConsentSignaturePanel = ref(false)
 const consentSignaturePoints = ref(0)
 const consentSignatureDrawing = ref(false)
 const consentSignTime = ref('')
@@ -674,10 +675,11 @@ function setupConsentSignatureCanvas() {
     canvas.height = Math.max(1, Math.floor(rect.height * ratio))
     const context = canvas.getContext('2d')
     context.setTransform(ratio, 0, 0, ratio, 0, 0)
-    context.lineWidth = 2
+    context.lineWidth = 2.4
     context.lineCap = 'round'
     context.lineJoin = 'round'
     context.strokeStyle = '#20343A'
+    context.clearRect(0, 0, rect.width, rect.height)
     if (consentSignatureData.value) {
       const image = new Image()
       image.onload = () => context.drawImage(image, 0, 0, rect.width, rect.height)
@@ -685,9 +687,21 @@ function setupConsentSignatureCanvas() {
     }
   })
 }
+function openConsentSignaturePanel() {
+  if (consentSigned.value) return
+  showConsentSignaturePanel.value = true
+  projectSubmitMessage.value = ''
+  document.body.style.overflow = 'hidden'
+  nextTick(() => setupConsentSignatureCanvas())
+}
+function closeConsentSignaturePanel() {
+  showConsentSignaturePanel.value = false
+  consentSignatureDrawing.value = false
+  document.body.style.overflow = ''
+  if (!consentSignatureConfirmed.value) consentSignaturePoints.value = 0
+}
 function getConsentSignaturePoint(event) {
-  const canvas = consentSignatureCanvas.value
-  const rect = canvas.getBoundingClientRect()
+  const rect = consentSignatureCanvas.value.getBoundingClientRect()
   return { x: event.clientX - rect.left, y: event.clientY - rect.top }
 }
 function startConsentSignature(event) {
@@ -741,6 +755,10 @@ function confirmConsentSignature() {
   consentSignatureData.value = consentSignatureCanvas.value?.toDataURL('image/png') || ''
   consentSignatureConfirmed.value = Boolean(consentSignatureData.value)
   projectSubmitMessage.value = consentSignatureConfirmed.value ? '签名已确认' : '请先完成家长手写签名'
+  if (consentSignatureConfirmed.value) {
+    showConsentSignaturePanel.value = false
+    document.body.style.overflow = ''
+  }
 }
 function signCurrentProject() {
   consentSigned.value = true
@@ -786,7 +804,7 @@ function openFlowNode(item) {
   projectSubmitMessage.value = ''
   page.value = 'projectSubPage'
   activeTab.value = 'project'
-  if (activeProjectSubPage.value === 'consent') setupConsentSignatureCanvas()
+
 }
 function openProjectPrepPage(target) {
   activeProjectSubPage.value = target
@@ -796,7 +814,6 @@ function openProjectPrepPage(target) {
   projectArchiveToast.value = ''
   if (target === 'consent') {
     consentConfirmed.value = consentSigned.value
-    setupConsentSignatureCanvas()
   }
 }
 function openFamilyServicePage(target) {
@@ -1268,7 +1285,7 @@ onBeforeUnmount(() => {
             <section class="sub-section consent-name"><strong>专案知情同意书</strong><span :class="['consent-state', consentSigned ? 'done' : 'pending']">{{ consentSigned ? '已签署' : '待签署' }}</span></section>
             <section class="sub-section consent-content"><h3>服务内容</h3><p>本知情同意书适用于儿童健康管理相关专案服务，包括健康筛查、专科评估、问卷采集、随访管理、家庭干预、复诊提醒及报告展示等内容。</p><h3>数据使用说明</h3><p>筛查和随访数据仅用于本次健康管理、医生评估和家长端报告展示。</p><h3>家长确认事项</h3><p>家长确认已了解服务边界，并同意配合完成问卷、复诊和家庭训练/饮食记录等事项。</p><h3>风险与注意事项</h3><p>如儿童出现视力下降、体重异常、脊柱姿态异常、口腔问题或其他健康异常，应及时到医疗机构进一步检查。</p></section>
             <label v-if="!consentSigned" class="consent-check"><input v-model="consentConfirmed" type="checkbox" />我已阅读并理解以上内容</label>
-            <section v-if="!consentSigned" class="sub-section consent-signature-section"><h3>家长手写签名</h3><div class="signature-pad"><canvas ref="consentSignatureCanvas" @pointerdown.prevent="startConsentSignature" @pointermove.prevent="drawConsentSignature" @pointerup.prevent="endConsentSignature" @pointerleave.prevent="endConsentSignature" @pointercancel.prevent="endConsentSignature"></canvas><span v-if="!consentSignaturePoints">请在此处手写签名</span></div><div class="signature-actions"><button class="ghost" type="button" @click="clearConsentSignature">清除重签</button><button class="ghost" type="button" @click="confirmConsentSignature">确认签名</button></div></section>
+            <section v-if="!consentSigned" class="sub-section consent-signature-section"><h3>家长手写签名</h3><div v-if="consentSignatureData" class="signature-preview"><img :src="consentSignatureData" alt="家长手写签名预览" /></div><button v-else class="signature-entry" type="button" @click="openConsentSignaturePanel">点击手写签名</button><button v-if="consentSignatureData" class="ghost signature-rewrite" type="button" @click="openConsentSignaturePanel">重新签名</button></section>
             <section v-if="consentSigned" class="sub-section signed-info consent-signed-detail"><h3>签署信息</h3><p><em>签署人</em><b>林一凡家长</b></p><p><em>签署时间</em><b>{{ consentSignTime }}</b></p><div class="signed-signature"><em>签名图片</em><img :src="consentSignatureData" alt="家长手写签名" /></div></section>
           </template>
           <template v-else-if="activeProjectSubPage === 'followup'">
@@ -1511,6 +1528,20 @@ onBeforeUnmount(() => {
           <img :src="activeReportDoc.image" :alt="activeReportDoc.name" :style="reportImageStyle" />
         </section>
       </section>
+      <Teleport to="body">
+        <section v-if="showConsentSignaturePanel" class="signature-overlay" @touchmove.prevent>
+          <div class="signature-device">
+            <i class="signature-device-speaker"></i>
+            <div class="signature-screen">
+              <div class="signature-landscape">
+                <header class="signature-title">请手写家长签名</header>
+                <main class="signature-canvas-area"><div class="signature-pad fullscreen-pad"><canvas ref="consentSignatureCanvas" @pointerdown.prevent="startConsentSignature" @pointermove.prevent="drawConsentSignature" @pointerup.prevent="endConsentSignature" @pointerleave.prevent="endConsentSignature" @pointercancel.prevent="endConsentSignature"></canvas><span v-if="!consentSignaturePoints">请在此处手写签名</span></div><small v-if="projectSubmitMessage">{{ projectSubmitMessage }}</small></main>
+                <footer class="signature-actions-bar"><button type="button" @click="closeConsentSignaturePanel">返回</button><button type="button" @click="clearConsentSignature">清除重签</button><button type="button" @click="confirmConsentSignature">确认签名</button></footer>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Teleport>
       <nav v-if="isLoggedIn && !activeReportDoc" class="bottom-tabs">
         <button v-for="item in [
           { k: 'home', t: '首页', i: House },
@@ -2312,17 +2343,31 @@ onBeforeUnmount(() => {
 .consent-check{display:flex!important;align-items:center!important;gap:8px!important;padding:0 2px!important;color:#60757C!important;font-size:13px!important}
 .consent-check input{width:16px!important;height:16px!important;padding:0!important;accent-color:#12A8AD!important}.consent-signature-section{padding:12px 13px!important;display:flex!important;flex-direction:column!important;gap:9px!important}
 .consent-signature-section h3,.consent-signed-detail h3{margin:0!important;color:#20343A!important;font-size:15px!important;line-height:1.35!important}
-.signature-pad{height:132px!important;position:relative!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#fff!important;overflow:hidden!important;touch-action:none!important}
-.signature-pad canvas{width:100%!important;height:100%!important;display:block!important;touch-action:none!important}
+.signature-entry{height:42px!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#fff!important;color:#12A8AD!important;font-weight:800!important}
+.signature-preview,.signed-signature img{width:100%!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#fff!important;display:block!important;overflow:hidden!important}
+.signature-preview{height:96px!important;padding:6px!important}
+.signature-preview img,.signed-signature img{width:100%!important;height:100%!important;object-fit:contain!important;display:block!important}
+.signature-rewrite{height:36px!important;border-radius:10px!important;font-size:13px!important}
+.signature-overlay{position:fixed!important;inset:0!important;z-index:9999!important;width:100vw!important;height:100vh!important;overflow:hidden!important;background:#F3F8F6!important;touch-action:none!important;overscroll-behavior:none!important;display:grid!important;place-items:center!important;padding:12px!important;box-sizing:border-box!important}
+.signature-device{position:relative!important;width:min(860px,calc(100vw - 24px))!important;aspect-ratio:812/375!important;max-height:calc(100vh - 24px)!important;padding:14px 18px!important;border:1px solid rgba(216,238,234,.95)!important;border-radius:32px!important;background:#FFFFFF!important;box-shadow:0 10px 28px rgba(38,191,195,.08)!important;box-sizing:border-box!important}
+.signature-device-speaker{position:absolute!important;left:10px!important;top:50%!important;width:4px!important;height:54px!important;border-radius:999px!important;background:rgba(18,168,173,.18)!important;transform:translateY(-50%)!important}
+.signature-screen{width:100%!important;height:100%!important;border-radius:22px!important;background:#F3F8F6!important;overflow:hidden!important;border:1px solid rgba(216,238,234,.85)!important}
+.signature-landscape{width:100%!important;height:100%!important;padding:12px!important;display:flex!important;flex-direction:column!important;gap:10px!important;background:#F3F8F6!important;box-sizing:border-box!important}
+.signature-title{flex:0 0 auto!important;color:#8A9CA1!important;font-size:14px!important;font-weight:800!important;text-align:center!important;line-height:1.35!important}
+.signature-canvas-area{min-height:0!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;gap:6px!important}
+.signature-canvas-area small{min-height:18px!important;color:#F2994A!important;font-size:12px!important;text-align:center!important;font-weight:800!important}
+.signature-pad{position:relative!important;flex:1 1 auto!important;min-height:0!important;width:100%!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#fff!important;overflow:hidden!important;touch-action:none!important}
+.signature-pad canvas{width:100%!important;height:100%!important;display:block!important;background:#fff!important;border:0!important;border-radius:8px!important;touch-action:none!important}
 .signature-pad span{position:absolute!important;left:0!important;right:0!important;top:50%!important;transform:translateY(-50%)!important;text-align:center!important;color:#A1AFB3!important;font-size:13px!important;pointer-events:none!important}
-.signature-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
-.signature-actions button{height:36px!important;border-radius:10px!important;font-size:13px!important}
+.fullscreen-pad{height:auto!important}
+.signature-actions-bar{flex:0 0 auto!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:9px!important}
+.signature-actions-bar button{height:42px!important;border:1px solid #DDE8E6!important;border-radius:10px!important;background:#fff!important;color:#12A8AD!important;font-size:13px!important;font-weight:800!important;line-height:1.2!important}
 .consent-signed-detail{display:flex!important;flex-direction:column!important;gap:8px!important;padding:12px 13px!important;background:#fff!important}
 .consent-signed-detail p{display:flex!important;justify-content:space-between!important;gap:12px!important;color:#60757C!important;font-size:13px!important;line-height:1.5!important}
 .consent-signed-detail em{font-style:normal!important;color:#8A9CA1!important}
 .consent-signed-detail b{color:#20343A!important;font-size:13px!important}
 .signed-signature{display:flex!important;flex-direction:column!important;gap:7px!important}
-.signed-signature img{width:100%!important;height:96px!important;object-fit:contain!important;border:1px solid #DDE8E6!important;border-radius:8px!important;background:#F8FCFB!important;display:block!important}
+.signed-signature img{height:96px!important;background:#F8FCFB!important}
 .sub-note-list{margin:0!important;padding-left:18px!important;color:#60757C!important;font-size:13px!important;line-height:1.7!important}
 .sub-task-list{display:flex!important;flex-direction:column!important;gap:9px!important}
 .sub-task-list article{min-height:64px!important;padding:12px 13px!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:4px 10px!important;align-items:center!important}
