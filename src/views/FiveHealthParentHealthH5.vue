@@ -96,6 +96,114 @@ const pendingBindMode = ref('')
 const pendingBindTarget = ref(null)
 const pendingDeleteStudentId = ref(null)
 const parentProfile = reactive({ name: '王女士', phone: '138****1234', relation: '母亲' })
+const childBasicInfo = reactive({
+  archiveNo: 'MR20260008',
+  manualNo: 'SXEB20260008',
+  name: '林予安',
+  gender: '男',
+  birthDate: '2025-01-22',
+  idType: '居民身份证',
+  idNo: '110101202501221018',
+  country: '中国',
+  nation: '汉族',
+  householdType: '户籍',
+  householdCategory: '非农业',
+  currentRegion: '北京市 / 市辖区 / 丰台区 / 大红门街道',
+  currentAddress: '广安路544号',
+  householdRegion: '北京市 / 市辖区 / 丰台区 / 卢沟桥街道',
+  householdAddress: '广安路544号',
+})
+const manualSpecialFieldLabels = ['阿氏评分', '阿氏评分-1分钟', '阿氏评分-5分钟', '阿氏评分-10分钟', '新生儿听力筛查', '新生儿听力筛查-未通过', '新生儿疾病筛查', '新生儿疾病筛查-其他遗传代谢病']
+const childManualSpecial = reactive({
+  apgarUnknown: false,
+  apgar1: '8',
+  apgar5: '9',
+  apgar10: '',
+  hearing: '通过',
+  hearingFail: '',
+  disease: '筛查均阴性',
+  diseasePositive: [],
+  diseaseOther: '',
+})
+const childArchiveSections = [
+  {
+    title: '手册信息',
+    fields: [
+      { label: '胎数', type: 'select', value: '单胎', options: ['单胎', '双胎', '三胎', '四胎以上'] },
+      { label: '出生次序', value: '1' },
+      { label: '出生地点', type: 'select', value: '县（区）级医院', options: ['省（市）级医院', '县（区）级医院', '乡（街道）卫生机构', '村（诊所）卫生院', '医院', '妇幼保健院', '家庭（家中）', '途中'], wide: true },
+      { label: '受孕方式', type: 'select', value: '自然受孕', options: ['自然受孕', '人工授精', '试管婴儿', '其他'] },
+      { label: '出生情况', type: 'select', value: '顺产', options: ['顺产', '胎头引产', '产钳', '剖宫产', '双多胎', '臀牵引', '臀助产', '其他'] },
+      { label: '出生身长（cm）', value: '50' },
+      { label: '出生体重（kg）', value: '2.5' },
+      { label: '出生头围（cm）', value: '34.0' },
+      { label: '孕周（X周X天）', value: '39周2天' },
+      { label: '第几胎', value: '1' },
+      { label: '第几产', value: '1' },
+      { label: '助产机构', value: '北京市某某妇幼保健院', wide: true },
+      { label: '阿氏评分', type: 'multi', value: ['1分钟', '5分钟', '10分钟'], options: ['1分钟', '5分钟', '10分钟', '不详'], wide: true },
+      { label: '阿氏评分-1分钟', value: '10' },
+      { label: '阿氏评分-5分钟', value: '10' },
+      { label: '阿氏评分-10分钟', value: '10' },
+      { label: '新生儿听力筛查', type: 'select', value: '通过', options: ['通过', '未通过', '未筛查', '不详'] },
+      { label: '新生儿听力筛查-未通过', type: 'select', value: '未填写', options: ['左右耳均未通过', '左耳未通过', '右耳未通过'] },
+      { label: '新生儿疾病筛查', type: 'multi', value: ['检查均阴性'], options: ['未进行', '检查均阴性', '甲低', '苯丙酮尿症', '其他遗传代谢病'], wide: true },
+      { label: '新生儿疾病筛查-其他遗传代谢病', value: '无', wide: true },
+      { label: '建档人', value: '王医生', readonly: true },
+      { label: '建档机构', value: '儿童健康管理中心', readonly: true },
+    ],
+  },
+  {
+    title: '母亲信息',
+    fields: [
+      { label: '母亲姓名', value: '王女士' },
+      { label: '联系电话', value: '138****1234' },
+      { label: '民族', value: '汉族' },
+      { label: '出生日期', type: 'date', value: '1988-06-12' },
+      { label: '母亲当前情况', type: 'select', value: '正常', options: ['正常', '离异不在身边', '死亡', '不详'] },
+      { label: '证件类型', type: 'select', value: '居民身份证', options: ['居民身份证', '居民户口簿', '护照', '军官证', '驾驶执照', '港澳居民来往内地通行证', '台湾居民来往内地通行证', '其他'], wide: true },
+      { label: '证件号码', value: '110101198806120026', wide: true },
+      { label: '文化程度', type: 'select', value: '大学学历及以上', options: ['文盲', '小学', '初中', '高中/技校/中专', '大学学历及以上', '不详'], wide: true },
+      { label: '母亲职业', type: 'select', value: '干部、职员', options: ['农、牧、渔', '干部、职员', '商业、服务', '文、教、体', '医院、科技', '工人', '军人', '个体', '家务'], wide: true },
+      { label: '工作单位', value: '北京市某某科技有限公司', wide: true },
+      { label: '健康状况', type: 'select', value: '健康', options: ['健康', '慢性病', '传染病'] },
+      { label: '健康状况-慢性病', value: '无' },
+      { label: '健康状况-传染病', value: '无' },
+      { label: '母亲妊娠患病情况', type: 'multi', value: ['其他'], options: ['糖尿病', '妊娠期高血压', '其他'], wide: true },
+      { label: '母亲妊娠患病情况-其他', value: '无特殊情况', wide: true },
+      { label: '孕期是否有传染病', type: 'select', value: '否', options: ['否', '是'] },
+      { label: '艾梅乙阳性', type: 'multi', value: [], options: ['艾滋病', '梅毒', '乙肝'], wide: true },
+      { label: '孕期高危等级', type: 'select', value: '低风险', options: ['低风险', '一般风险', '较高风险', '高风险'], wide: true },
+      { label: '孕期高危因素', value: '无', wide: true },
+    ],
+  },
+  {
+    title: '父亲信息',
+    fields: [
+      { label: '父亲姓名', value: '林先生' },
+      { label: '联系电话', value: '139****5678' },
+      { label: '民族', value: '汉族' },
+      { label: '出生日期', type: 'date', value: '1986-09-21' },
+      { label: '证件类型', type: 'select', value: '居民身份证', options: ['居民身份证', '居民户口簿', '护照', '军官证', '驾驶执照', '港澳居民来往内地通行证', '台湾居民来往内地通行证', '其他'], wide: true },
+      { label: '证件号码', value: '110101198609210019', wide: true },
+      { label: '父亲职业', type: 'select', value: '文、教、体', options: ['农、牧、渔', '干部、职员', '商业、服务', '文、教、体', '医院、科技', '工人', '军人', '个体', '家务'], wide: true },
+      { label: '工作单位', value: '北京市某某学校', wide: true },
+      { label: '文化程度', type: 'select', value: '大学学历及以上', options: ['文盲', '小学', '初中', '高中/技校/中专', '大学学历及以上', '不详'], wide: true },
+      { label: '健康状况', type: 'select', value: '健康', options: ['健康', '慢性病', '传染病'] },
+      { label: '健康状况-慢性病', value: '无' },
+      { label: '健康状况-传染病', value: '无' },
+    ],
+  },
+  {
+    title: '高危信息',
+    fields: [
+      { label: '是否高危', type: 'select', value: '否', options: ['否', '是'] },
+      { label: '高危因素', value: '无', wide: true },
+      { label: '其他高危因素', value: '无', wide: true },
+      { label: '住院诊断', type: 'textarea', value: '无明确住院诊断', wide: true },
+    ],
+  },
+]
 const parentProfileSaved = ref(false)
 const editingStudentId = ref(null)
 const questionnaireAnswers = reactive({})
@@ -589,6 +697,43 @@ function toggleSpecialtyReportGroup(key) {
 function previewSpecialtyAttachment() {
   projectArchiveToast.value = '附件预览暂未开放'
   window.setTimeout(() => { projectArchiveToast.value = '' }, 1600)
+}
+function normalizeApgarScore(key) {
+  const value = String(childManualSpecial[key] || '').replace(/[^0-9]/g, '')
+  childManualSpecial[key] = value === '' ? '' : String(Math.min(10, Number(value)))
+}
+function toggleApgarUnknown() {
+  childManualSpecial.apgarUnknown = !childManualSpecial.apgarUnknown
+  if (childManualSpecial.apgarUnknown) {
+    childManualSpecial.apgar1 = ''
+    childManualSpecial.apgar5 = ''
+    childManualSpecial.apgar10 = ''
+  }
+}
+function setManualHearing(value) {
+  childManualSpecial.hearing = value
+  if (value !== '未通过') childManualSpecial.hearingFail = ''
+}
+function setManualDisease(value) {
+  childManualSpecial.disease = value
+  if (value !== '筛查阳性') {
+    childManualSpecial.diseasePositive = []
+    childManualSpecial.diseaseOther = ''
+  }
+}
+function toggleManualDiseasePositive(value) {
+  const index = childManualSpecial.diseasePositive.indexOf(value)
+  if (index >= 0) childManualSpecial.diseasePositive.splice(index, 1)
+  else childManualSpecial.diseasePositive.push(value)
+  if (!childManualSpecial.diseasePositive.includes('其他遗传代谢病')) childManualSpecial.diseaseOther = ''
+}
+function queryChildBasicInfo(type) {
+  projectSubmitMessage.value = type === 'manual' ? '平台儿保手册查询完成' : '证件号码查询完成'
+}
+function copyCurrentAddressToHousehold() {
+  childBasicInfo.householdRegion = childBasicInfo.currentRegion
+  childBasicInfo.householdAddress = childBasicInfo.currentAddress
+  projectSubmitMessage.value = '已同步现住地址'
 }
 function showProjectToast(message) {
   projectArchiveToast.value = message
@@ -1250,12 +1395,9 @@ onBeforeUnmount(() => {
           </article>
 
           <template v-if="activeProjectSubPage === 'profile'">
-            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>基础身份信息</h3><div class="sub-form-grid"><label class="required"><span class="field-label">儿童姓名</span><input :value="currentStudent.name" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">性别</span><input :value="currentStudent.gender" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">出生日期</span><input value="2016-04-18" :readonly="!isProjectProfileEditing" /></label><label>年龄<input :value="currentStudent.age + '岁'" readonly /></label><label class="required"><span class="field-label">身份证号</span><input value="110101201604180018" :readonly="!isProjectProfileEditing" /></label><label>档案编号<input value="FH-2026-0418-001" :readonly="!isProjectProfileEditing" /></label></div></section>
+            <section class="sub-section child-basic-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>基础身份信息</h3><div class="sub-form-grid child-basic-grid"><label class="readonly-field"><span class="field-label">档案编号</span><input v-model="childBasicInfo.archiveNo" readonly /></label><label class="query-field wide-field"><span class="field-label">平台儿保手册</span><span><input v-model="childBasicInfo.manualNo" :readonly="!isProjectProfileEditing" /><button type="button" @click="queryChildBasicInfo('manual')">查询</button></span></label><label class="required"><span class="field-label">姓名</span><input v-model="childBasicInfo.name" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">性别</span><select v-if="isProjectProfileEditing" v-model="childBasicInfo.gender"><option>男</option><option>女</option><option>不详</option><option>未知</option></select><input v-else v-model="childBasicInfo.gender" readonly /></label><label class="required"><span class="field-label">出生日期</span><input v-model="childBasicInfo.birthDate" :type="isProjectProfileEditing ? 'date' : 'text'" :readonly="!isProjectProfileEditing" /></label><label><span class="field-label">证件类型</span><select v-if="isProjectProfileEditing" v-model="childBasicInfo.idType"><option>居民身份证</option><option>居民户口簿</option><option>护照</option><option>军官证</option><option>驾驶执照</option><option>港澳居民来往内地通行证</option><option>台湾居民来往内地通行证</option><option>其他</option></select><input v-else v-model="childBasicInfo.idType" readonly /></label><label class="query-field wide-field"><span class="field-label">证件号码</span><span><input v-model="childBasicInfo.idNo" :readonly="!isProjectProfileEditing" /><button type="button" @click="queryChildBasicInfo('id')">查询</button></span></label><label><span class="field-label">国籍</span><select v-if="isProjectProfileEditing" v-model="childBasicInfo.country"><option>中国</option></select><input v-else v-model="childBasicInfo.country" readonly /></label><label><span class="field-label">民族</span><select v-if="isProjectProfileEditing" v-model="childBasicInfo.nation"><option>汉族</option><option>满族</option><option>回族</option><option>蒙古族</option><option>其他</option></select><input v-else v-model="childBasicInfo.nation" readonly /></label><label><span class="field-label">户籍类型</span><select v-if="isProjectProfileEditing" v-model="childBasicInfo.householdType"><option>户籍</option><option>流入</option></select><input v-else v-model="childBasicInfo.householdType" readonly /></label><label><span class="field-label">户别</span><select v-if="isProjectProfileEditing" v-model="childBasicInfo.householdCategory"><option>农业</option><option>非农业</option></select><input v-else v-model="childBasicInfo.householdCategory" readonly /></label><label class="address-field wide-field"><span class="field-label">现住地址</span><input v-model="childBasicInfo.currentRegion" :readonly="!isProjectProfileEditing" /><input v-model="childBasicInfo.currentAddress" :readonly="!isProjectProfileEditing" /></label><label class="address-field wide-field"><span class="field-label address-label-action">户籍地址<button type="button" @click="copyCurrentAddressToHousehold">同现住址</button></span><input v-model="childBasicInfo.householdRegion" :readonly="!isProjectProfileEditing" /><input v-model="childBasicInfo.householdAddress" :readonly="!isProjectProfileEditing" /></label></div></section>
             <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>就读信息</h3><div class="sub-form-grid"><label class="required wide-field"><span class="field-label">就读机构</span><input value="北京市海淀区中关村第三小学万柳校区" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">年级</span><input value="四年级" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">班级</span><input :value="currentStudent.className" :readonly="!isProjectProfileEditing" /></label><label>学籍号<input value="XJ20260418001" :readonly="!isProjectProfileEditing" /></label></div></section>
-            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>监护人及联络信息</h3><div class="sub-form-grid guardian-grid"><label class="required"><span class="field-label">监护人</span><input :value="isProjectProfileEditing ? parentProfile.name : parentProfile.name + '｜' + parentProfile.relation" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">监护人电话</span><input :value="parentProfile.phone" :readonly="!isProjectProfileEditing" /></label><label v-if="isProjectProfileEditing" class="required"><span class="field-label">与儿童关系</span><input :value="parentProfile.relation" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">紧急联系人</span><input value="林先生" :readonly="!isProjectProfileEditing" /></label><label class="required emergency-phone"><span class="field-label">紧急联系电话</span><input value="139****5678" :readonly="!isProjectProfileEditing" /></label></div><label class="sub-text-field required"><span class="field-label">户籍地址</span><textarea :readonly="!isProjectProfileEditing">北京市海淀区某某街道 18 号</textarea></label><label class="sub-text-field required"><span class="field-label">现居住地址</span><textarea :readonly="!isProjectProfileEditing">北京市海淀区某某小区 3 号楼</textarea></label></section>
-            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>出生与成长基础信息</h3><div class="sub-form-grid"><label class="required"><span class="field-label">民族</span><input value="汉族" :readonly="!isProjectProfileEditing" /></label><label class="required"><span class="field-label">出生孕周</span><input value="39周" :readonly="!isProjectProfileEditing" /></label></div><div class="sub-field-title required">是否早产</div><div class="sub-options"><span class="selected">足月</span><span>早产</span></div><div class="sub-field-title required">分娩方式</div><div class="sub-options"><span class="selected">顺产</span><span>剖宫产</span></div></section>
-            <section class="sub-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>既往健康与家族风险史</h3><div class="sub-field-title">既往病史</div><div class="sub-check-list health-history"><span>哮喘</span><span class="selected">过敏</span><span>矮小</span><span>肥胖</span><span class="selected">弱视</span><span>脊柱疾病</span><span>精神情绪相关病史</span><span class="none">无明显既往病史</span></div><div class="sub-field-title">家族高危史</div><div class="sub-check-list health-history"><span class="selected">父母近视</span><span>父母高度近视</span><span>家族肥胖</span><span>糖尿病</span><span>脊柱侧弯</span><span>心理疾病遗传史</span><span class="none">无明显家族高危史</span></div><label class="sub-text-field">手术史<textarea :readonly="!isProjectProfileEditing">无明确手术史</textarea></label><label class="sub-text-field">长期用药史<textarea :readonly="!isProjectProfileEditing">无长期用药</textarea></label><label class="sub-text-field">既往体检异常记录<textarea :readonly="!isProjectProfileEditing">曾提示远视储备不足，建议随访。</textarea></label><label class="sub-text-field">以往就诊 / 矫正记录<textarea :readonly="!isProjectProfileEditing">2025年曾进行眼科复查，未长期配镜。</textarea></label></section>
-
+            <section v-for="section in childArchiveSections" :key="section.title" class="sub-section child-archive-section" :class="{ 'is-editing': isProjectProfileEditing, 'is-readonly': !isProjectProfileEditing }"><h3>{{ section.title }}</h3><div class="sub-form-grid child-archive-grid"><label v-for="field in section.fields.filter((item) => section.title !== '手册信息' || !manualSpecialFieldLabels.includes(item.label))" :key="section.title + field.label" :class="[{ 'wide-field': field.wide || field.type === 'textarea' }, { 'readonly-field': field.readonly }] "><span class="field-label">{{ field.label }}</span><textarea v-if="field.type === 'textarea'" :value="field.value" :readonly="!isProjectProfileEditing || field.readonly"></textarea><select v-else-if="field.type === 'select' && isProjectProfileEditing && !field.readonly" :value="field.value"><option v-for="option in field.options" :key="option" :value="option">{{ option }}</option></select><div v-else-if="field.type === 'multi'" class="archive-choice-list"><span v-for="option in field.options" :key="option" :class="{ selected: field.value.includes(option) }">{{ option }}</span><em v-if="!field.value.length">未选择</em></div><input v-else :type="field.type === 'date' && isProjectProfileEditing && !field.readonly ? 'date' : 'text'" :value="Array.isArray(field.value) ? field.value.join('、') : field.value" :readonly="!isProjectProfileEditing || field.readonly" /></label></div><div v-if="section.title === '手册信息'" class="manual-special-fields"><div class="manual-special-head"><span class="field-label">阿氏评分</span><button v-if="isProjectProfileEditing" type="button" :class="{ selected: childManualSpecial.apgarUnknown }" @click="toggleApgarUnknown()">不详</button><span v-else-if="childManualSpecial.apgarUnknown" class="manual-unknown-tag selected">不详</span></div><div class="manual-score-grid"><label><span class="field-label">阿氏评分-1分钟</span><span><input v-model="childManualSpecial.apgar1" inputmode="numeric" :readonly="!isProjectProfileEditing || childManualSpecial.apgarUnknown" :disabled="childManualSpecial.apgarUnknown" @input="normalizeApgarScore('apgar1')" /><em>分</em></span></label><label><span class="field-label">阿氏评分-5分钟</span><span><input v-model="childManualSpecial.apgar5" inputmode="numeric" :readonly="!isProjectProfileEditing || childManualSpecial.apgarUnknown" :disabled="childManualSpecial.apgarUnknown" @input="normalizeApgarScore('apgar5')" /><em>分</em></span></label><label><span class="field-label">阿氏评分-10分钟</span><span><input v-model="childManualSpecial.apgar10" inputmode="numeric" :readonly="!isProjectProfileEditing || childManualSpecial.apgarUnknown" :disabled="childManualSpecial.apgarUnknown" @input="normalizeApgarScore('apgar10')" /><em>分</em></span></label></div><div class="manual-choice-block"><span class="field-label">新生儿听力筛查</span><div class="archive-choice-list manual-choice-list"><span v-for="option in ['通过', '未通过', '未筛查', '不详']" :key="option" :class="{ selected: childManualSpecial.hearing === option }" @click="isProjectProfileEditing && setManualHearing(option)">{{ option }}</span></div></div><label v-if="childManualSpecial.hearing === '未通过'" class="manual-single-field"><span class="field-label">新生儿听力筛查-未通过</span><select v-if="isProjectProfileEditing" v-model="childManualSpecial.hearingFail"><option value="">请选择</option><option>左右耳均未通过</option><option>左耳未通过</option><option>右耳未通过</option></select><input v-else :value="childManualSpecial.hearingFail || '未填写'" readonly /></label><div class="manual-choice-block"><span class="field-label">新生儿疾病筛查</span><div class="archive-choice-list manual-choice-list"><span v-for="option in ['未进行', '筛查均阴性', '筛查阳性', '不详']" :key="option" :class="{ selected: childManualSpecial.disease === option }" @click="isProjectProfileEditing && setManualDisease(option)">{{ option }}</span></div></div><div v-if="childManualSpecial.disease === '筛查阳性'" class="manual-choice-block"><span class="field-label">阳性病种</span><div class="archive-choice-list manual-choice-list"><span v-for="option in ['甲低', '苯丙酮尿症', '其他遗传代谢病']" :key="option" :class="{ selected: childManualSpecial.diseasePositive.includes(option) }" @click="isProjectProfileEditing && toggleManualDiseasePositive(option)">{{ option }}</span></div></div><label v-if="childManualSpecial.disease === '筛查阳性' && childManualSpecial.diseasePositive.includes('其他遗传代谢病')" class="manual-single-field"><span class="field-label">新生儿疾病筛查-其他遗传代谢病</span><input v-model="childManualSpecial.diseaseOther" :readonly="!isProjectProfileEditing" /></label></div></section>
           </template>
 
           <template v-else-if="activeProjectSubPage === 'questionnaire'">
@@ -2468,7 +2610,62 @@ onBeforeUnmount(() => {
 /* followup notice page refinement */
 .project-subpage-screen:has(.followup-notice-time) .project-sub-summary{padding:12px 14px!important}.followup-notice-time{display:flex!important;flex-direction:column!important;align-items:stretch!important;justify-content:flex-start!important;gap:8px!important;padding:14px!important;border-radius:8px!important;background:#fff!important;box-shadow:0 8px 22px rgba(28,91,92,.055)!important}.followup-notice-time small{color:#8A9CA1!important;font-size:13px!important;font-weight:700!important;line-height:1.2!important}.followup-notice-time div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}.followup-notice-time strong{min-width:0!important;color:#20343A!important;font-size:16px!important;font-weight:800!important;line-height:1.35!important}.followup-notice-time span{flex:none!important;padding:4px 9px!important;border-radius:999px!important;background:#FFF4E8!important;color:#F2994A!important;font-size:12px!important;font-weight:800!important;white-space:nowrap!important}.followup-info-list{padding:0 14px!important;border-radius:8px!important;overflow:hidden!important}.followup-info-list p{min-height:42px!important;margin:0!important;padding:11px 0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;border-top:1px solid rgba(216,238,234,.62)!important;line-height:1.45!important}.followup-info-list p:first-child{border-top:0!important}.followup-info-list em{flex:none!important;color:#8A9CA1!important;font-size:13px!important;font-style:normal!important;white-space:nowrap!important}.followup-info-list b{min-width:0!important;color:#20343A!important;font-size:14px!important;font-weight:700!important;text-align:left!important;overflow-wrap:anywhere!important}.followup-projects .sub-chip-list{display:flex!important;gap:8px!important;flex-wrap:wrap!important}.followup-projects .sub-chip-list span{border:0!important;border-radius:8px!important;background:#E8F8F6!important;color:#12A8AD!important;padding:6px 9px!important;font-size:12px!important;font-weight:800!important;box-shadow:none!important}.followup-notes .sub-note-list{margin-bottom:0!important}.followup-notes .ghost,.followup-notes button{display:none!important}
 @media(max-width:360px){.followup-notice-time div{align-items:flex-start!important;flex-direction:column!important}.followup-info-list p{align-items:flex-start!important}}
+
+/* child archive profile fields */
+.child-archive-section{gap:11px!important}
+.child-archive-grid label{min-width:0!important}
+.child-archive-grid select{width:100%!important;min-width:0!important;height:36px!important;padding:0 9px!important;border:1px solid rgba(18,168,173,.42)!important;border-radius:8px!important;background:#fff!important;color:#20343A!important;font-size:13px!important;font-weight:600!important;box-shadow:0 0 0 2px rgba(18,168,173,.06)!important}
+.archive-choice-list{min-height:36px!important;padding:6px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:8px!important;background:#FAFEFD!important;display:flex!important;flex-wrap:wrap!important;gap:5px!important;align-items:center!important;overflow:hidden!important}
+.archive-choice-list span,.archive-choice-list em{max-width:100%!important;padding:3px 7px!important;border-radius:999px!important;background:#F4FAF9!important;color:#60757C!important;font-size:11px!important;font-style:normal!important;font-weight:700!important;line-height:16px!important;overflow-wrap:anywhere!important}
+.archive-choice-list span.selected{background:#E4F8F6!important;color:#12A8AD!important}
+.project-subpage-screen .sub-section.is-readonly .archive-choice-list{border-color:transparent!important;background:#F8FCFB!important;pointer-events:none!important}
+.project-subpage-screen .sub-section.is-editing .archive-choice-list{border-color:rgba(18,168,173,.42)!important;background:#fff!important;box-shadow:0 0 0 2px rgba(18,168,173,.06)!important}
+.project-subpage-screen .sub-section.is-readonly select{pointer-events:none!important}
+.child-archive-grid .readonly-field input{color:#60757C!important;background:#F6FAF9!important}
+.phone-shell:has(.project-subpage-screen .child-archive-section) .phone-content{padding-bottom:132px!important;scroll-padding-bottom:132px!important}
+.project-subpage-screen:has(.child-archive-section){padding-bottom:112px!important}
+
+/* child basic profile fields */
+.child-basic-grid select{width:100%!important;min-width:0!important;height:36px!important;padding:0 9px!important;border:1px solid rgba(18,168,173,.42)!important;border-radius:8px!important;background:#fff!important;color:#20343A!important;font-size:13px!important;font-weight:600!important;box-shadow:0 0 0 2px rgba(18,168,173,.06)!important}
+.child-basic-grid .query-field>span:last-child{display:grid!important;grid-template-columns:minmax(0,1fr) 58px!important;gap:8px!important;align-items:center!important}
+.child-basic-grid .query-field button,.address-label-action button{height:34px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:9px!important;background:#F0FCFA!important;color:#12A8AD!important;font-size:12px!important;font-weight:800!important;box-shadow:none!important;white-space:nowrap!important}
+.child-basic-grid .address-field{gap:7px!important}
+.child-basic-grid .address-field input{height:auto!important;min-height:36px!important;padding-top:8px!important;padding-bottom:8px!important;line-height:1.45!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important}
+.address-label-action{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;width:100%!important}
+.address-label-action button{height:26px!important;padding:0 8px!important;border-radius:999px!important;font-size:11px!important}
+.project-subpage-screen .sub-section.is-readonly .child-basic-grid select{pointer-events:none!important}
+.project-subpage-screen .sub-section.is-readonly .query-field button,.project-subpage-screen .sub-section.is-readonly .address-label-action button{opacity:.72!important}
+@media(max-width:390px){.child-basic-grid{gap:9px!important}.child-basic-grid .query-field>span:last-child{grid-template-columns:minmax(0,1fr) 54px!important;gap:7px!important}}
+
+/* manual special profile fields */
+.manual-special-fields{display:flex!important;flex-direction:column!important;gap:10px!important}
+.manual-special-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding-top:2px!important}
+.manual-special-head .field-label,.manual-choice-block>.field-label,.manual-single-field>.field-label,.manual-score-grid .field-label{color:#8A9CA1!important;font-size:12px!important;font-weight:700!important}
+.manual-special-head button{height:28px!important;padding:0 9px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#F7FBFA!important;color:#60757C!important;font-size:12px!important;font-weight:800!important;box-shadow:none!important;white-space:nowrap!important}
+.manual-special-head button.selected,.manual-unknown-tag.selected{border-color:#12A8AD!important;background:#E4F8F6!important;color:#12A8AD!important}
+.manual-unknown-tag{height:28px!important;padding:0 9px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#F7FBFA!important;color:#60757C!important;font-size:12px!important;font-weight:800!important;line-height:28px!important;white-space:nowrap!important}
+.manual-score-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important}
+.manual-score-grid label,.manual-single-field,.manual-choice-block{min-width:0!important;display:flex!important;flex-direction:column!important;gap:6px!important}
+.manual-score-grid label>span:last-child{display:grid!important;grid-template-columns:minmax(0,1fr) 22px!important;align-items:center!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:8px!important;background:#FAFEFD!important;overflow:hidden!important}
+.manual-score-grid input{height:34px!important;border:0!important;background:transparent!important;padding:0 8px!important;color:#20343A!important;font-size:13px!important;font-weight:700!important;box-shadow:none!important}
+.manual-score-grid em{color:#8A9CA1!important;font-size:12px!important;font-style:normal!important;font-weight:700!important;text-align:center!important}
+.manual-score-grid input:disabled{color:#9AADB2!important;background:#F1F6F5!important}
+.manual-choice-list span{cursor:default!important}
+.project-subpage-screen .sub-section.is-editing .manual-choice-list span{cursor:pointer!important}
+.manual-single-field select,.manual-single-field input{width:100%!important;min-width:0!important;height:36px!important;padding:0 9px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:8px!important;background:#FAFEFD!important;color:#20343A!important;font-size:13px!important;font-weight:700!important;box-shadow:none!important}
+.project-subpage-screen .sub-section.is-editing .manual-single-field select,.project-subpage-screen .sub-section.is-editing .manual-single-field input{border-color:rgba(18,168,173,.42)!important;background:#fff!important;box-shadow:0 0 0 2px rgba(18,168,173,.06)!important}
+@media(max-width:360px){.manual-score-grid{grid-template-columns:1fr!important}.manual-special-head{align-items:flex-start!important;flex-direction:column!important}}
 </style>
+
+
+
+
+
+
+
+
+
+
 
 
 
