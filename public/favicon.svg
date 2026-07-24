@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="五健健康管理">
+  <rect width="64" height="64" rx="14" fill="#19B38F" />
+  <path d="M32 9 49 15v15c0 12-7 20-17 25-10-5-17-13-17-25V15l17-6Z" fill="#FFFFFF" />
+  <path d="M32 14 44 18v12c0 8.5-4.5 15-12 19-7.5-4-12-10.5-12-19V18l12-4Z" fill="#E8F8F4" />
+  <path d="M36 25h8v9h-8v8h-9v-8h-8v-9h8v-8h9v8Z" fill="#14A784" />
+</svg>
