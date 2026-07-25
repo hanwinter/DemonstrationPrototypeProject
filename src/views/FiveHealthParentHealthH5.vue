@@ -1369,7 +1369,7 @@ onBeforeUnmount(() => {
         </template>
         <template v-else>
           <button class="back" type="button" @click="handleBack"><el-icon><ArrowLeft /></el-icon></button>
-          <strong>儿童青少年五健专案管理</strong>
+          <strong>儿童青少年“五健”健康管理</strong>
           <button v-if="isLoggedIn && page !== 'home' && page !== 'reports' && page !== 'signup'" class="plain" type="button" @click="go('messages')"><el-icon><Bell /></el-icon></button><span v-else class="top-placeholder"></span>
         </template>
       </header>
@@ -1377,13 +1377,11 @@ onBeforeUnmount(() => {
       <div :class="['phone-content', { 'login-content': !isLoggedIn, 'sheet-open': showHealthDetailSheet }]">
         <section v-if="!isLoggedIn" class="login-screen simple-login-screen">
           <section class="login-brand-panel">
-            <h1>儿童青少年五健专案管理</h1>
-            <p>专案进展、筛查报告、复诊随访、健康建议一站查看</p>
+            <h1>儿童青少年“五健”健康管理</h1>
+            <span class="login-brand-subtitle">（家长端）</span>
             <i class="decor-dot dot-a"></i><i class="decor-dot dot-b"></i><i class="decor-cross">+</i><i class="decor-ring"></i>
           </section>
           <article class="login-card simple-login-card">
-            <span class="login-card-kicker">五健专案家长端</span>
-            <h2>家长登录</h2>
             <label class="field-only"><input v-model="loginForm.phone" inputmode="tel" maxlength="11" placeholder="请输入手机号" /></label>
             <label class="field-only"><span class="code-row"><input v-model="loginForm.code" inputmode="numeric" maxlength="6" placeholder="请输入验证码" /><button type="button" @click="sendCode">获取验证码</button></span></label>
             <button class="primary full login-button" type="button" @click="login">登录</button>
@@ -2826,7 +2824,11 @@ onBeforeUnmount(() => {
 .rehab-leave-dialog input,.rehab-leave-dialog select,.rehab-leave-dialog textarea{width:100%!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:10px!important;background:#FAFEFD!important;color:#20343A!important;font:inherit!important;font-weight:700!important;box-shadow:none!important}
 .rehab-leave-dialog input,.rehab-leave-dialog select{height:38px!important;padding:0 10px!important}
 .rehab-leave-dialog textarea{padding:9px 10px!important;resize:none!important;line-height:1.5!important}
+.phone-shell.is-login-shell .simple-login-card{gap:10px!important;padding:18px 20px!important;margin:-26px 4px 0!important}.phone-shell.is-login-shell .simple-login-card .field-only:first-child{margin-top:0!important}.phone-shell.is-login-shell .login-brand-panel{height:232px}.phone-shell.is-login-shell .login-brand-panel h1{margin-top:18px!important;font-size:24px!important;line-height:1.25!important;white-space:nowrap!important}.phone-shell.is-login-shell .login-brand-subtitle{display:block!important;width:auto!important;margin-top:8px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:rgba(255,255,255,.88)!important;font-size:16px!important;font-weight:600!important;line-height:1.3!important;backdrop-filter:none!important}.phone-shell.is-login-shell .login-brand-subtitle::before{display:none!important}.phone-shell.is-login-shell .login-brand-panel p{display:none!important}.phone-top strong{min-width:0!important;max-width:100%!important;font-size:clamp(14px,4.1vw,17px)!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 </style>
+
+
+
 
 
 
