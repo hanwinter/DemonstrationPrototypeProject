@@ -10,6 +10,7 @@ import FiveHealthProfile from '../views/FiveHealthProfile.vue'
 import FiveHealthParentMobile from '../views/FiveHealthParentMobile.vue'
 import FiveHealthParentHealthH5 from '../views/FiveHealthParentHealthH5.vue'
 import FiveHealthZhixingParentH5 from '../views/FiveHealthZhixingParentH5.vue'
+import FiveHealthChargeProjectManagement from '../views/FiveHealthChargeProjectManagement.vue'
 import NursingActivityCreate from '../views/NursingActivityCreate.vue'
 import NursingCrm from '../views/NursingCrm.vue'
 
@@ -77,6 +78,11 @@ const router = createRouter({
       component: FiveHealthZhixingParentH5,
     },
     {
+      path: '/five-health/charge-projects',
+      name: 'five-health-charge-projects',
+      component: FiveHealthChargeProjectManagement,
+    },
+    {
       path: '/nursing/activity/create',
       name: 'nursing-activity-create',
       component: NursingActivityCreate,
@@ -100,6 +106,7 @@ const router = createRouter({
 })
 
 export default router
+
 
 
 
