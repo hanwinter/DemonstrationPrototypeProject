@@ -10,6 +10,8 @@ import FiveHealthProfile from '../views/FiveHealthProfile.vue'
 import FiveHealthParentMobile from '../views/FiveHealthParentMobile.vue'
 import FiveHealthParentHealthH5 from '../views/FiveHealthParentHealthH5.vue'
 import FiveHealthZhixingParentH5 from '../views/FiveHealthZhixingParentH5.vue'
+import NursingActivityCreate from '../views/NursingActivityCreate.vue'
+import NursingCrm from '../views/NursingCrm.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -74,8 +76,31 @@ const router = createRouter({
       name: 'five-health-zhixing-parent-h5',
       component: FiveHealthZhixingParentH5,
     },
+    {
+      path: '/nursing/activity/create',
+      name: 'nursing-activity-create',
+      component: NursingActivityCreate,
+    },
+    {
+      path: '/nursing/crm',
+      name: 'nursing-crm',
+      component: NursingCrm,
+    },
+    {
+      path: '/nursing/crm/staff/:id',
+      name: 'nursing-crm-staff',
+      component: NursingCrm,
+    },
+    {
+      path: '/nursing/crm/staff/:id/media-select',
+      name: 'nursing-crm-media-select',
+      component: NursingCrm,
+    },
   ],
 })
 
 export default router
+
+
+
 
