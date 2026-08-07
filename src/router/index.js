@@ -18,6 +18,7 @@ import NursingActivityCreate from '../views/NursingActivityCreate.vue'
 import NursingCrm from '../views/NursingCrm.vue'
 import NursingHomeLogMiniapp from '../views/NursingHomeLogMiniapp.vue'
 import NursingServiceAdmin from '../views/NursingServiceAdmin.vue'
+import SinglePageOptimization from '../views/SinglePageOptimization.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -121,6 +122,11 @@ const router = createRouter({
       path: '/nursing/service-admin',
       name: 'nursing-service-admin',
       component: NursingServiceAdmin,
+    },
+    {
+      path: '/maternal-care/single-page-optimization',
+      name: 'maternal-care-single-page-optimization',
+      component: SinglePageOptimization,
     },
     {
       path: '/nursing/crm/staff/:id',
