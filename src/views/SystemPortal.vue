@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -22,7 +22,8 @@ const fiveHealthFunctions = [
 const nursingFunctions = [
   { title: '母婴CRM', text: '服务员资料管理与展示', path: '/nursing/crm' },
   { title: '线下活动创建', text: '创建活动、关联服务员并选择本次使用的简历', path: '/nursing/activity/create' },
-  { title: '上户日志小程序', text: '模拟微信小程序端上户日志、确认与反馈流程', path: '/nursing/home-log-miniapp' },
+  { title: '家政服务移动端', text: '月嫂/家政服务人员移动工作台', path: '/nursing/home-log-miniapp' },
+  { title: '家政服务管理后台', text: '服务订单、过程、异常与客户运营管理', path: '/nursing/service-admin' },
 ]
 </script>
 
@@ -44,8 +45,8 @@ const nursingFunctions = [
         <div class="function-grid single"><button v-for="item in fiveHealthFunctions" :key="item.path" type="button" @click="router.push(item.path)"><span><strong>{{ item.title }}</strong><small>{{ item.text }}</small></span><i>→</i></button></div>
       </article>
       <article class="system nursing-system">
-        <div class="heading"><div class="five-heading"><div class="five-health nursing-icon">母婴</div><h3>母婴陪护</h3></div><em>3 项功能</em></div>
-        <p class="system-desc">母婴服务人员管理、线下活动、简历关联及上户日志</p>
+        <div class="heading"><div class="five-heading"><div class="five-health nursing-icon">母婴</div><h3>母婴陪护</h3></div><em>{{ nursingFunctions.length }} 项功能</em></div>
+        <p class="system-desc">母婴服务人员管理、线下活动、家政服务移动端及管理后台</p>
         <div class="function-grid single"><button v-for="item in nursingFunctions" :key="item.path" type="button" @click="router.push(item.path)"><span><strong>{{ item.title }}</strong><small>{{ item.text }}</small></span><i>→</i></button></div>
       </article>
     </section>

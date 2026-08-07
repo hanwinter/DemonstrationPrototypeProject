@@ -1,4 +1,4 @@
-﻿import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import SystemPortal from '../views/SystemPortal.vue'
 import OcrRecognition from '../views/OcrRecognition.vue'
 import PartographDemo from '../views/PartographDemo.vue'
@@ -17,6 +17,7 @@ import FiveHealthChargeProjectManagement from '../views/FiveHealthChargeProjectM
 import NursingActivityCreate from '../views/NursingActivityCreate.vue'
 import NursingCrm from '../views/NursingCrm.vue'
 import NursingHomeLogMiniapp from '../views/NursingHomeLogMiniapp.vue'
+import NursingServiceAdmin from '../views/NursingServiceAdmin.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -115,6 +116,11 @@ const router = createRouter({
       path: '/nursing/home-log-miniapp',
       name: 'nursing-home-log-miniapp',
       component: NursingHomeLogMiniapp,
+    },
+    {
+      path: '/nursing/service-admin',
+      name: 'nursing-service-admin',
+      component: NursingServiceAdmin,
     },
     {
       path: '/nursing/crm/staff/:id',
