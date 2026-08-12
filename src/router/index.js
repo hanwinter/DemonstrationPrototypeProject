@@ -19,6 +19,7 @@ import NursingCrm from '../views/NursingCrm.vue'
 import NursingHomeLogMiniapp from '../views/NursingHomeLogMiniapp.vue'
 import NursingServiceAdmin from '../views/NursingServiceAdmin.vue'
 import SinglePageOptimization from '../views/SinglePageOptimization.vue'
+import DemoPagesIndex from '../views/demo-pages/index/DemoPagesIndex.vue'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -127,6 +128,84 @@ const router = createRouter({
       path: '/maternal-care/single-page-optimization',
       name: 'maternal-care-single-page-optimization',
       component: SinglePageOptimization,
+    },
+    {
+      path: '/demo-pages/physical-exam-data',
+      name: 'demo-pages-physical-exam-data',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 体检数据' },
+    },
+    {
+      path: '/demo-pages/patient-archive',
+      name: 'demo-pages-patient-archive',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 患者建档' },
+    },
+    {
+      path: '/demo-pages/exam-records',
+      name: 'demo-pages-exam-records',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 体检记录' },
+    },
+    {
+      path: '/demo-pages/exam-records/detail/:id',
+      name: 'demo-pages-exam-record-detail',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 体检记录详情' },
+    },
+    {
+      path: '/demo-pages/report-config',
+      name: 'demo-pages-report-config',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 报告配置' },
+    },
+    {
+      path: '/demo-pages/followup-plan',
+      name: 'demo-pages-followup-plan',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 随访方案' },
+    },
+    {
+      path: '/demo-pages/student-health-archive',
+      name: 'demo-pages-student-health-archive',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 学生健康档案' },
+    },
+    {
+      path: '/demo-pages/saas-region',
+      name: 'demo-pages-saas-region',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - SaaS部署与区域协同管理' },
+    },
+    {
+      path: '/demo-pages/regional-data-archive',
+      name: 'demo-pages-regional-data-archive',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 区域数据汇聚与健康档案' },
+    },
+    {
+      path: '/demo-pages/regional-analysis',
+      name: 'demo-pages-regional-analysis',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 区域数据分析' },
+    },
+    {
+      path: '/demo-pages/regional-supervision',
+      name: 'demo-pages-regional-supervision',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 区域监管驾驶舱' },
+    },
+    {
+      path: '/demo-pages/quality-control',
+      name: 'demo-pages-quality-control',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 质量控制与预警管理' },
+    },
+    {
+      path: '/demo-pages/quality-control/detail/:id',
+      name: 'demo-pages-quality-control-detail',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 问题详情' },
     },
     {
       path: '/nursing/crm/staff/:id',
