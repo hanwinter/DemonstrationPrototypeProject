@@ -130,6 +130,12 @@ const router = createRouter({
       component: SinglePageOptimization,
     },
     {
+      path: '/demo-pages/work-center',
+      name: 'demo-pages-work-center',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 工作中心' },
+    },
+    {
       path: '/demo-pages/physical-exam-data',
       name: 'demo-pages-physical-exam-data',
       component: DemoPagesIndex,
@@ -200,6 +206,30 @@ const router = createRouter({
       name: 'demo-pages-quality-control',
       component: DemoPagesIndex,
       meta: { title: '单页面演示 - 质量控制与预警管理' },
+    },
+    {
+      path: '/demo-pages/quality-review',
+      name: 'demo-pages-quality-review',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 实时防错预警与事后总检' },
+    },
+    {
+      path: '/demo-pages/work-document',
+      name: 'demo-pages-work-document',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 五健工作情况文档' },
+    },
+    {
+      path: '/demo-pages/semantic-report',
+      name: 'demo-pages-semantic-report',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 语义化体检总结报告' },
+    },
+    {
+      path: '/demo-pages/cohort-database',
+      name: 'demo-pages-cohort-database',
+      component: DemoPagesIndex,
+      meta: { title: '单页面演示 - 青少年五健队列数据库' },
     },
     {
       path: '/demo-pages/quality-control/detail/:id',

@@ -14,12 +14,18 @@ import RegionalDataAnalysisDemo from '../regional-analysis/RegionalDataAnalysisD
 import RegionalSupervisionDashboard from '../regional-supervision/RegionalSupervisionDashboard.vue'
 import QualityControlWarningDemo from '../quality-control/QualityControlWarningDemo.vue'
 import QualityIssueDetail from '../quality-control/QualityIssueDetail.vue'
+import WorkCenterDemo from '../work-center/WorkCenterDemo.vue'
+import RealtimeQualityReviewDemo from '../quality-review/RealtimeQualityReviewDemo.vue'
+import FiveHealthWorkDocumentDemo from '../work-document/FiveHealthWorkDocumentDemo.vue'
+import SemanticExamReportDemo from '../semantic-report/SemanticExamReportDemo.vue'
+import YouthFiveHealthCohortDemo from '../cohort-database/YouthFiveHealthCohortDemo.vue'
 
 const router = useRouter()
 const route = useRoute()
 const activeMenu = ref('physical-exam-data')
 const expanded = ref(true)
 const menus = [
+  { key: 'work-center', label: '工作中心', path: '/demo-pages/work-center' },
   { key: 'physical-exam-data', label: '体检数据', path: '/demo-pages/physical-exam-data' },
   { key: 'patient-archive', label: '患者建档', path: '/demo-pages/patient-archive' },
   { key: 'exam-records', label: '体检记录', path: '/demo-pages/exam-records' },
@@ -31,12 +37,16 @@ const menus = [
   { key: 'regional-analysis', label: '区域数据分析', path: '/demo-pages/regional-analysis' },
   { key: 'regional-supervision', label: '区域监管驾驶舱', path: '/demo-pages/regional-supervision' },
   { key: 'quality-control', label: '质量控制与预警管理', path: '/demo-pages/quality-control' },
+  { key: 'quality-review', label: '实时防错预警与事后总检', path: '/demo-pages/quality-review' },
+  { key: 'work-document', label: '五健工作情况文档', path: '/demo-pages/work-document' },
+  { key: 'semantic-report', label: '语义化体检总结报告', path: '/demo-pages/semantic-report' },
+  { key: 'cohort-database', label: '青少年五健队列数据库', path: '/demo-pages/cohort-database' },
 ]
 
 watch(
   () => route.path,
   (path) => {
-    activeMenu.value = path.startsWith('/demo-pages/exam-records') ? 'exam-records' : path.startsWith('/demo-pages/quality-control') ? 'quality-control' : menus.find((item) => item.path === path)?.key || 'physical-exam-data'
+    activeMenu.value = path.startsWith('/demo-pages/exam-records') ? 'exam-records' : path.startsWith('/demo-pages/quality-control') ? 'quality-control' : menus.find((item) => item.path === path)?.key || 'work-center'
   },
   { immediate: true },
 )
@@ -72,7 +82,8 @@ watch(
         </div>
       </aside>
       <section class="content-area">
-        <PhysicalExamDataDemo v-if="activeMenu === 'physical-exam-data'" />
+        <WorkCenterDemo v-if="activeMenu === 'work-center'" />
+        <PhysicalExamDataDemo v-else-if="activeMenu === 'physical-exam-data'" />
         <PatientArchiveDemo v-else-if="activeMenu === 'patient-archive'" />
         <ExamRecordDetail v-else-if="route.name === 'demo-pages-exam-record-detail'" />
         <ExamRecordsList v-else-if="activeMenu === 'exam-records'" />
@@ -85,6 +96,10 @@ watch(
         <RegionalSupervisionDashboard v-else-if="activeMenu === 'regional-supervision'" />
         <QualityIssueDetail v-else-if="route.name === 'demo-pages-quality-control-detail'" />
         <QualityControlWarningDemo v-else-if="activeMenu === 'quality-control'" />
+        <RealtimeQualityReviewDemo v-else-if="activeMenu === 'quality-review'" />
+        <FiveHealthWorkDocumentDemo v-else-if="activeMenu === 'work-document'" />
+        <SemanticExamReportDemo v-else-if="activeMenu === 'semantic-report'" />
+        <YouthFiveHealthCohortDemo v-else-if="activeMenu === 'cohort-database'" />
       </section>
     </section>
   </main>

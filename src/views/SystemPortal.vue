@@ -27,55 +27,39 @@ const nursingFunctions = [
   { title: '单页面优化', text: '回访提醒等后台单页面优化入口', path: '/maternal-care/single-page-optimization' },
 ]
 const demoPageFunctions = [
-  { title: '体检数据', text: '传统医疗业务管理系统风格宽表格演示', path: '/demo-pages/physical-exam-data' },
-  { title: '患者建档', text: '院内筛查患者基础档案与新增体检演示', path: '/demo-pages/patient-archive' },
-  { title: '体检记录', text: '院内筛查体检记录列表与独立详情页演示', path: '/demo-pages/exam-records' },
-  { title: '报告配置', text: '配置报告类型、体检项目和报告字段', path: '/demo-pages/report-config' },
-  { title: '随访方案', text: '管理五健筛查后的自动随访方案配置', path: '/demo-pages/followup-plan' },
-  { title: '学生健康档案', text: '查看学生跨学年连续健康档案与筛查报告', path: '/demo-pages/student-health-archive' },
-  { title: 'SaaS部署与区域协同管理', text: '演示区域SaaS部署、组织协同、权限与数据隔离', path: '/demo-pages/saas-region' },
-  { title: '区域数据汇聚与健康档案', text: '展示区域筛查数据汇聚与连续健康档案沉淀', path: '/demo-pages/regional-data-archive' },
-  { title: '区域数据分析', text: '面向区域管理部门的五健健康数据分析中心', path: '/demo-pages/regional-analysis' },
-  { title: '区域监管驾驶舱', text: '监管筛查任务执行、学校覆盖、参检与复筛随访闭环', path: '/demo-pages/regional-supervision' },
-  { title: '质量控制与预警管理', text: '发现数据质量问题、业务风险预警并跟踪整改闭环', path: '/demo-pages/quality-control' },
+  { title: '单页面演示', text: '独立演示、临时验证、专项改造页面统一入口', path: '/demo-pages/work-center' },
+]
+
+const systemGroups = [
+  { title: '孕产保健系统', items: functions },
+  { title: '五健系统', items: fiveHealthFunctions },
+  { title: '母婴陪护', items: nursingFunctions },
+  { title: '单页面演示', items: demoPageFunctions },
 ]
 </script>
 
 <template>
   <main class="portal">
-    <header><h1>妇幼健康业务系统</h1></header>
-    <section class="hero"><h2>业务应用总入口</h2></section>
-    <section class="systems">
-      <article class="system maternal">
-        <div class="heading"><h3>孕产保健系统</h3><em>{{ functions.length }} 项功能</em></div>
-        <div class="function-grid">
-          <button v-for="item in functions" :key="item.path" type="button" @click="router.push(item.path)">
-            <span><strong>{{ item.title }}</strong><small>{{ item.text }}</small></span><i>→</i>
+    <section class="directory">
+      <h1>演示项目</h1>
+      <section v-for="group in systemGroups" :key="group.title" class="system-section">
+        <div class="section-heading">
+          <h2>{{ group.title }}</h2>
+          <span>{{ group.items.length }} 项</span>
+        </div>
+        <div class="entry-grid">
+          <button v-for="item in group.items" :key="item.path" type="button" @click="router.push(item.path)">
+            <span>{{ item.title }}</span>
+            <i>→</i>
           </button>
         </div>
-      </article>
-      <article class="system five-health-system">
-        <div class="heading"><div class="five-heading"><div class="five-health">五健</div><h3>五健系统</h3></div><em>5 项功能</em></div>
-        <div class="function-grid single"><button v-for="item in fiveHealthFunctions" :key="item.path" type="button" @click="router.push(item.path)"><span><strong>{{ item.title }}</strong><small>{{ item.text }}</small></span><i>→</i></button></div>
-      </article>
-      <article class="system nursing-system">
-        <div class="heading"><div class="five-heading"><div class="five-health nursing-icon">母婴</div><h3>母婴陪护</h3></div><em>{{ nursingFunctions.length }} 项功能</em></div>
-        <p class="system-desc">母婴服务人员管理、线下活动、家政服务移动端及管理后台</p>
-        <div class="function-grid single"><button v-for="item in nursingFunctions" :key="item.path" type="button" @click="router.push(item.path)"><span><strong>{{ item.title }}</strong><small>{{ item.text }}</small></span><i>→</i></button></div>
-      </article>
-      <article class="system demo-page-system">
-        <div class="heading"><div class="five-heading"><div class="five-health demo-icon">演示</div><h3>单页面演示</h3></div><em>{{ demoPageFunctions.length }} 项功能</em></div>
-        <p class="system-desc">独立演示、临时验证、专项改造页面统一入口</p>
-        <div class="function-grid single"><button v-for="item in demoPageFunctions" :key="item.path" type="button" @click="router.push(item.path)"><span><strong>{{ item.title }}</strong><small>{{ item.text }}</small></span><i>→</i></button></div>
-      </article>
+      </section>
     </section>
-    <footer>妇幼健康信息化平台 · 演示环境</footer>
   </main>
 </template>
 
 <style scoped>
-*{box-sizing:border-box}.portal{min-height:100vh;color:#25324b;background:radial-gradient(circle at 85% 0,#dcecff 0,transparent 28%),#f4f7fb;font-family:"Microsoft YaHei",Arial,sans-serif}header{height:72px;padding:0 max(32px,calc((100vw - 1280px)/2));display:flex;align-items:center;background:rgba(255,255,255,.92);border-bottom:1px solid #e5eaf2}header h1{margin:0;font-size:18px}.hero{max-width:1280px;margin:auto;padding:38px 32px 24px}.hero h2{margin:0;font-size:34px}.system p{margin:0;color:#718096}.systems{max-width:1280px;margin:auto;padding:0 32px 48px;display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:22px}.system{border:1px solid #e2e8f2;border-radius:18px;background:#fff;box-shadow:0 12px 36px rgba(44,75,120,.08)}.maternal{padding:28px}.heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}.system b{display:inline-block;padding:4px 9px;color:#24745a;font-size:12px;border-radius:20px;background:#e8f7f1}.system h3{margin:0;font-size:23px}.disabled h3{margin:12px 0 7px}.heading em{color:#3878d1;font-size:13px;font-style:normal}.function-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.function-grid button{min-height:66px;padding:10px 14px;display:flex;align-items:center;gap:10px;text-align:left;border:1px solid #e6ebf3;border-radius:13px;background:#fbfcfe;cursor:pointer;transition:.18s}.function-grid button:hover{border-color:#80aff1;background:#f4f8ff;transform:translateY(-2px);box-shadow:0 8px 20px rgba(46,111,202,.1)}.function-grid button span{flex:1;display:flex;flex-direction:column;gap:3px}.function-grid small{color:#8490a2;line-height:1.4}.function-grid i{color:#91a0b5;font-size:20px;font-style:normal}.disabled{padding:28px;display:flex;flex-direction:column;align-items:flex-start;background:linear-gradient(160deg,#fff,#f7f9fc)}.five-health{width:64px;height:64px;margin-bottom:26px;display:grid;place-items:center;color:#8d99aa;font-weight:700;border-radius:18px;background:#edf0f4}.disabled b{color:#7b8491;background:#edf0f3}.disabled p{line-height:1.7}.disabled button{width:100%;height:40px;margin-top:auto;color:#98a2b1;border:1px solid #dce1e8;border-radius:9px;background:#f1f3f6;cursor:not-allowed}footer{padding:0 32px 28px;color:#a0a9b7;font-size:12px;text-align:center}@media(max-width:900px){.systems{grid-template-columns:1fr}.function-grid{grid-template-columns:1fr}.disabled p{margin-bottom:24px}}
-.five-health-system,.nursing-system,.demo-page-system{padding:28px}.five-heading{display:flex;align-items:center;gap:14px}.five-heading .five-health{width:52px;height:52px;margin:0;color:#fff;border-radius:14px;background:#447afc}.five-heading .nursing-icon{background:#12a8ad}.five-heading .demo-icon{background:#5f8db8}.five-health-system .function-grid.single,.nursing-system .function-grid.single,.demo-page-system .function-grid.single{grid-template-columns:1fr}.system-desc{min-height:40px;margin:-8px 0 18px;color:#718096;line-height:1.6}
+*{box-sizing:border-box}.portal{min-height:100vh;padding:40px 32px;color:#25324b;background:#f4f7fb;font-family:"Microsoft YaHei",Arial,sans-serif}.directory{max-width:1120px;margin:0 auto;padding:34px 42px 46px;background:#fff;border:1px solid #e3e8f0;border-radius:10px;box-shadow:0 10px 28px rgba(44,75,120,.06)}.directory h1{margin:0 0 34px;color:#1f2d45;font-size:26px;font-weight:600;letter-spacing:0}.system-section+.system-section{margin-top:42px}.section-heading{padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #e6ebf2}.section-heading h2{margin:0;color:#25324b;font-size:20px;font-weight:600;letter-spacing:0}.section-heading span{flex:0 0 auto;color:#7b8798;font-size:13px}.entry-grid{padding-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:34px;row-gap:4px}.entry-grid button{width:100%;min-height:46px;padding:0 10px 0 0;display:flex;align-items:center;justify-content:space-between;gap:18px;text-align:left;color:#2e3b52;border:0;background:transparent;font-size:15px;font-family:inherit;letter-spacing:0;cursor:pointer;transition:color .16s ease,background .16s ease}.entry-grid button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.entry-grid button i{flex:0 0 auto;color:#8c98aa;font-size:18px;font-style:normal;transition:color .16s ease}.entry-grid button:hover{color:#2f6fca;background:#f6f9fd}.entry-grid button:hover i{color:#2f6fca}@media(max-width:760px){.portal{padding:20px 14px}.directory{padding:24px 18px 30px;border-radius:8px}.directory h1{margin-bottom:28px;font-size:24px}.system-section+.system-section{margin-top:34px}.section-heading h2{font-size:18px}.entry-grid{grid-template-columns:1fr;column-gap:0}.entry-grid button{min-height:44px;padding-right:6px}.entry-grid button span{white-space:normal;line-height:1.45}}
 </style>
 
 

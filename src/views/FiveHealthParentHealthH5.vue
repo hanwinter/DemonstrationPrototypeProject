@@ -229,10 +229,10 @@ const editingStudentId = ref(null)
 const questionnaireAnswers = reactive({})
 const baseSignupDone = ref(false)
 const selectedPaidProjectIds = ref([])
-const activePaidCategory = ref('all')
-const paidProjectsExpanded = ref(true)
 const paidOrderStatus = ref('none')
 const showBaseSignupSuccess = ref(false)
+const insuranceStatus = ref('')
+const baseSignupTip = ref('')
 const showPayConfirm = ref(false)
 const showPaySuccess = ref(false)
 const showRefundConfirm = ref(false)
@@ -410,14 +410,13 @@ const baseScreeningTagGroups = computed(() => baseScreeningGroups.map((group) =>
   ...group,
   tags: String(group.items || '').split('、').filter(Boolean),
 })))
-const paidCategoryTabs = [{ key: 'all', label: '全部' }, { key: 'vision', label: '视力' }, { key: 'oral', label: '口腔' }, { key: 'bone', label: '骨骼' }, { key: 'nutrition', label: '营养' }, { key: 'mental', label: '心理' }, { key: 'service', label: '综合' }]
-const paidProjectGroups = [
-  { key: 'vision', name: '视力专项', projects: ['眼轴长度检查:30','电脑验光:20','角膜曲率检查:35','眼位检查:25','视功能检查:45'].map((v,i)=>{const [name,price]=v.split(':');return {id:'vision-'+i,name,price:+price}}) },
-  { key: 'oral', name: '口腔专项', projects: ['龋齿风险评估:15','涂氟防龋:60','窝沟封闭评估:30','牙菌斑检测:20','口腔卫生指导:10'].map((v,i)=>{const [name,price]=v.split(':');return {id:'oral-'+i,name,price:+price}}) },
-  { key: 'bone', name: '体态骨骼', projects: ['足弓精细评估:25','步态分析:40','脊柱精细评估:50','体态拍照评估:30','骨龄评估:80'].map((v,i)=>{const [name,price]=v.split(':');return {id:'bone-'+i,name,price:+price}}) },
-  { key: 'nutrition', name: '营养体成分', projects: ['体成分分析:35','骨密度检测:50','维生素D风险评估:25','营养风险评估:30','生长发育评估:40'].map((v,i)=>{const [name,price]=v.split(':');return {id:'nutrition-'+i,name,price:+price}}) },
-  { key: 'mental', name: '心理行为', projects: ['注意力测评:45','情绪筛查拓展:35','睡眠质量评估:30','学习适应量表:40','亲子关系量表:40'].map((v,i)=>{const [name,price]=v.split(':');return {id:'mental-'+i,name,price:+price}}) },
-  { key: 'service', name: '综合服务', projects: ['专家报告解读:50','纸质报告打印:10','复查预约服务:20','健康档案导出:10','个性化干预建议:60'].map((v,i)=>{const [name,price]=v.split(':');return {id:'service-'+i,name,price:+price}}) },
+const recommendedPaidProjects = [
+  { id: 'lab-blood-routine', name: '血常规', price: 30 },
+  { id: 'lab-liver-3', name: '肝功3项', price: 45 },
+  { id: 'lab-vitamin-d', name: '25-羟维生素D', price: 60 },
+  { id: 'lab-trace-elements', name: '微量元素', price: 50 },
+  { id: 'lab-ferritin', name: '铁蛋白', price: 40 },
+  { id: 'lab-allergen-basic', name: '过敏原初筛', price: 80 },
 ]
 
 const questionnaires = reactive([
@@ -542,10 +541,16 @@ const isProjectProfileEditing = computed(() => activeProjectSubPage.value === 'p
 const reportImageStyle = computed(() => ({ width: (reportZoom.value * 100) + '%', transform: 'translate3d(' + reportImageX.value + 'px, ' + reportImageY.value + 'px, 0)' }))
 const currentStudent = computed(() => students.find((item) => item.id === selectedStudentId.value) || students[0])
 const editingStudent = computed(() => students.find((item) => item.id === editingStudentId.value) || currentStudent.value)
-const flatPaidProjects = computed(() => paidProjectGroups.flatMap((group) => group.projects.map((item) => ({ ...item, category: group.key, groupName: group.name }))))
+const flatPaidProjects = computed(() => recommendedPaidProjects)
 const selectedPaidProjects = computed(() => flatPaidProjects.value.filter((item) => selectedPaidProjectIds.value.includes(item.id)))
 const paidTotal = computed(() => selectedPaidProjects.value.reduce((sum, item) => sum + item.price, 0))
-const visiblePaidProjectGroups = computed(() => activePaidCategory.value === 'all' ? paidProjectGroups : paidProjectGroups.filter((group) => group.key === activePaidCategory.value))
+const baseProjectFee = computed(() => insuranceStatus.value === 'uninsured' ? 20 : insuranceStatus.value === 'insured' ? 0 : null)
+const signupPayTotal = computed(() => (baseProjectFee.value || 0) + paidTotal.value)
+const baseSignupButtonText = computed(() => {
+  if (!insuranceStatus.value) return '确认基础报名'
+  return signupPayTotal.value > 0 ? `确认并支付￥${signupPayTotal.value}` : '确认基础报名'
+})
+const baseSignupSuccessMessage = computed(() => insuranceStatus.value === 'uninsured' ? '已完成基础筛查报名及基础项目支付，推荐加项可在截止时间前继续选择。' : '已确认参加本次免费基础筛查，推荐加项可在截止时间前继续选择。')
 const canEditPaidProjects = computed(() => paidOrderStatus.value !== 'paid' && paidOrderStatus.value !== 'refunding')
 const planStatusLabel = computed(() => !baseSignupDone.value ? '可报名' : paidOrderStatus.value === 'paid' ? '已报名｜自费已支付' : paidOrderStatus.value === 'refunded' ? '已报名｜自费已退款' : '已报名')
 const orderStatusLabel = computed(() => ({ none: '未选择', pending: '待支付', paid: '已支付', refunding: '退款中', refunded: '已退款' }[paidOrderStatus.value] || '未选择'))
@@ -701,12 +706,24 @@ function getOverlayClass(item) {
   return 'hidden'
 }
 function togglePaidProject(id) { if (!canEditPaidProjects.value) return; selectedPaidProjectIds.value = selectedPaidProjectIds.value.includes(id) ? selectedPaidProjectIds.value.filter((item) => item !== id) : [...selectedPaidProjectIds.value, id] }
-function confirmBaseSignup() { baseSignupDone.value = true; showBaseSignupSuccess.value = true }
+function selectInsuranceStatus(value) {
+  insuranceStatus.value = value
+  baseSignupTip.value = ''
+}
+function confirmBaseSignup() {
+  if (!insuranceStatus.value) {
+    baseSignupTip.value = '请选择医保情况'
+    return
+  }
+  baseSignupDone.value = true
+  baseSignupTip.value = ''
+  showBaseSignupSuccess.value = true
+}
 function openPayConfirm() { if (!baseSignupDone.value) { confirmBaseSignup(); return }; if (!selectedPaidProjectIds.value.length) return; paidOrderStatus.value = 'pending'; showPayConfirm.value = true }
-function finishWechatPay() { paidOrderStatus.value = 'paid'; paidProjectsExpanded.value = false; showPayConfirm.value = false; showPaySuccess.value = true }
+function finishWechatPay() { paidOrderStatus.value = 'paid'; showPayConfirm.value = false; showPaySuccess.value = true }
 function requestRefund() { showRefundConfirm.value = true }
 function confirmRefunding() { showRefundConfirm.value = false; paidOrderStatus.value = 'refunding' }
-function finishRefund() { paidOrderStatus.value = 'refunded'; selectedPaidProjectIds.value = []; paidProjectsExpanded.value = true; showRefundSuccess.value = true }
+function finishRefund() { paidOrderStatus.value = 'refunded'; selectedPaidProjectIds.value = []; showRefundSuccess.value = true }
 function scrollToPaidProjects() { showBaseSignupSuccess.value = false; showRefundSuccess.value = false; requestAnimationFrame(() => { const container = document.querySelector('.phone-content'); const target = document.querySelector('.paid-project-section'); if (container && target) container.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: 'smooth' }) }) }
 function selectSpecialProject(id) {
   activeSpecialProjectId.value = id
@@ -1647,7 +1664,7 @@ onBeforeUnmount(() => {
 
         <section v-else-if="page === 'studentEdit'" class="screen student-edit-screen"><div class="page-title"><button type="button" @click.stop.prevent="openStudentsManager()"><el-icon><ArrowLeft /></el-icon></button><h2>编辑就诊人</h2></div><article class="form-card profile-form-card"><label>学生姓名<input v-model="editingStudent.name" /></label><label>学校<input v-model="editingStudent.school" /></label><label>班级<input v-model="editingStudent.className" /></label><label>年龄<input v-model="editingStudent.age" /></label><button class="primary full" type="button" @click.stop.prevent="openStudentsManager()">保存</button></article></section>
 
-        <section v-else-if="page === 'signup'" class="screen signup-screen"><div class="page-title"><button type="button" @click="go('home')"><el-icon><ArrowLeft /></el-icon></button><h2>体检报名</h2></div><article class="signup-plan-card signup-notice-card"><div class="signup-card-head"><span class="pill normal">{{ planStatusLabel }}</span><strong>{{ examPlan.name }}</strong></div><div class="signup-info-grid"><span><em>学校：</em><b>{{ examPlan.school }}</b></span><span><em>体检日期：</em><b>{{ examPlan.date }}</b></span><span><em>体检地点：</em><b>{{ examPlan.place }}</b></span><span><em>报名截止：</em><b>{{ examPlan.deadline }}</b></span></div></article><article class="signup-section base-project-card notice-project-card"><div class="signup-section-title"><strong>本次体检项目</strong></div><p>以下项目为本次学校统一安排的五健入校筛查内容。</p><div class="notice-project-list"><section v-for="group in baseScreeningTagGroups" :key="group.type" :class="['notice-project-group', group.type.includes('体格') ? 'physical' : group.type.includes('视力') ? 'vision' : group.type.includes('脊柱') ? 'spine' : group.type.includes('口腔') ? 'oral' : 'mental']"><h3><i></i>{{ group.type }}</h3><div class="notice-project-tags"><span v-for="item in group.tags" :key="item">{{ item }}</span></div></section></div></article><article class="signup-section student-confirm-card"><div class="signup-section-title"><strong>学生信息确认</strong></div><div class="student-confirm-list"><p><em>学生姓名</em><b>{{ currentStudent.name }}</b></p><p><em>学校班级</em><b>{{ currentStudent.school }}｜{{ currentStudent.className }}</b></p><p><em>联系电话</em><b>13800001234</b></p></div><label class="student-remark-field">备注<textarea placeholder="可填写既往病史、特殊情况等"></textarea></label></article><article class="signup-section paid-project-section"><div class="signup-section-title"><strong>推荐加项</strong><button type="button" @click="paidProjectsExpanded = !paidProjectsExpanded">{{ paidProjectsExpanded ? '收起' : '展开' }}</button></div><p class="paid-inline-tip">以下项目可由家长自愿选择，选择后需在线支付。</p><p v-if="!paidProjectsExpanded" class="paid-collapsed-summary">{{ selectedPaidProjects.length ? '已选 ' + selectedPaidProjects.length + ' 项，合计 ￥' + paidTotal : '暂未选择推荐加项' }}</p><template v-if="paidProjectsExpanded"><div class="paid-category-tabs"><button v-for="tab in paidCategoryTabs" :key="tab.key" type="button" :class="{ active: activePaidCategory === tab.key }" @click="activePaidCategory = tab.key">{{ tab.label }}</button></div><div class="paid-group-list"><section v-for="group in visiblePaidProjectGroups" :key="group.key" class="paid-group"><div class="paid-group-title"><strong>{{ group.name }}</strong><span>{{ group.projects.length }}项</span></div><button v-for="project in group.projects" :key="project.id" type="button" :class="['paid-project-row', { selected: selectedPaidProjectIds.includes(project.id), disabled: !canEditPaidProjects }]" @click="togglePaidProject(project.id)"><i>{{ selectedPaidProjectIds.includes(project.id) ? '✓' : '' }}</i><span>{{ project.name }}</span><b>￥{{ project.price }}</b></button></section></div></template></article><article v-if="selectedPaidProjects.length || paidOrderStatus !== 'none'" class="signup-section order-summary-card"><div class="signup-section-title"><strong>自费订单</strong><span>{{ orderStatusLabel }}</span></div><p>体检日期：{{ examPlan.date }}</p><div class="order-items"><span v-for="item in selectedPaidProjects" :key="item.id">{{ item.name }} ￥{{ item.price }}</span></div><strong>合计：￥{{ paidTotal }}</strong></article><div class="signup-bottom-bar"><div><span>已选 {{ selectedPaidProjects.length }} 项</span><strong>￥{{ paidTotal }}</strong></div><button v-if="!baseSignupDone" class="primary" type="button" @click="confirmBaseSignup">确认基础报名</button><button v-else-if="selectedPaidProjects.length && paidOrderStatus !== 'paid' && paidOrderStatus !== 'refunding'" class="primary" type="button" @click="openPayConfirm">提交自费订单并支付</button><button v-else-if="paidOrderStatus === 'paid'" class="ghost" type="button" @click="requestRefund">申请整单退款</button><button v-else-if="paidOrderStatus === 'refunding'" class="primary" type="button" @click="finishRefund">模拟退款成功</button><button v-else class="ghost" type="button" @click="scrollToPaidProjects">选择推荐加项</button></div></section>
+        <section v-else-if="page === 'signup'" class="screen signup-screen"><div class="page-title"><button type="button" @click="go('home')"><el-icon><ArrowLeft /></el-icon></button><h2>体检报名</h2></div><article class="signup-plan-card signup-notice-card"><div class="signup-card-head"><span class="pill normal">{{ planStatusLabel }}</span><strong>{{ examPlan.name }}</strong></div><div class="signup-info-grid"><span><em>学校：</em><b>{{ examPlan.school }}</b></span><span><em>体检日期：</em><b>{{ examPlan.date }}</b></span><span><em>体检地点：</em><b>{{ examPlan.place }}</b></span><span><em>报名截止：</em><b>{{ examPlan.deadline }}</b></span></div></article><article class="signup-section base-project-card notice-project-card"><div class="signup-section-title"><strong>本次体检项目</strong></div><p>以下项目为本次学校统一安排的五健入校筛查内容。</p><div class="notice-project-list"><section v-for="group in baseScreeningTagGroups" :key="group.type" :class="['notice-project-group', group.type.includes('体格') ? 'physical' : group.type.includes('视力') ? 'vision' : group.type.includes('脊柱') ? 'spine' : group.type.includes('口腔') ? 'oral' : 'mental']"><h3><i></i>{{ group.type }}</h3><div class="notice-project-tags"><span v-for="item in group.tags" :key="item">{{ item }}</span></div></section></div></article><article class="signup-section student-confirm-card"><div class="signup-section-title"><strong>学生信息确认</strong></div><div class="student-confirm-list"><p><em>学生姓名</em><b>{{ currentStudent.name }}</b></p><p><em>学校班级</em><b>{{ currentStudent.school }}｜{{ currentStudent.className }}</b></p><p><em>联系电话</em><b>13800001234</b></p></div><label class="student-remark-field">备注<textarea placeholder="可填写既往病史、特殊情况等"></textarea></label><section class="insurance-confirm-group"><div class="insurance-confirm-title"><strong>费用资格确认</strong><span v-if="baseSignupTip">{{ baseSignupTip }}</span></div><div class="insurance-row"><em>医保情况</em><div class="insurance-options"><button type="button" :class="{ active: insuranceStatus === 'insured' }" @click="selectInsuranceStatus('insured')">有医保</button><button type="button" :class="{ active: insuranceStatus === 'uninsured' }" @click="selectInsuranceStatus('uninsured')">无医保</button></div></div><div class="insurance-fee-row"><em>基础项目费用</em><strong>{{ baseProjectFee === null ? '请选择医保情况' : '￥' + baseProjectFee }}</strong></div><p>{{ insuranceStatus === 'uninsured' ? '无医保：本次基础筛查项目需支付 20 元。' : insuranceStatus === 'insured' ? '有医保：本次基础筛查项目免费。' : '请选择医保情况后确认基础项目费用。' }}</p></section></article><article class="signup-section paid-project-section"><div class="signup-section-title"><strong>推荐加项</strong><span>{{ flatPaidProjects.length }}项</span></div><p class="paid-inline-tip">以下项目可由家长自愿选择，选择后需在线支付。</p><div class="paid-group-list direct-paid-list"><button v-for="project in flatPaidProjects" :key="project.id" type="button" :class="['paid-project-row', { selected: selectedPaidProjectIds.includes(project.id), disabled: !canEditPaidProjects }]" @click="togglePaidProject(project.id)"><i>{{ selectedPaidProjectIds.includes(project.id) ? '✓' : '' }}</i><span>{{ project.name }}</span><b>￥{{ project.price }}</b></button></div></article><article v-if="selectedPaidProjects.length || paidOrderStatus !== 'none'" class="signup-section order-summary-card"><div class="signup-section-title"><strong>自费订单</strong><span>{{ orderStatusLabel }}</span></div><p>体检日期：{{ examPlan.date }}</p><div class="order-items"><span v-for="item in selectedPaidProjects" :key="item.id">{{ item.name }} ￥{{ item.price }}</span></div><strong>合计：￥{{ paidTotal }}</strong></article><div class="signup-bottom-bar"><div><span>已选 {{ selectedPaidProjects.length }} 项</span><strong>加项 ￥{{ paidTotal }}</strong></div><button v-if="!baseSignupDone" class="primary" type="button" @click="confirmBaseSignup">{{ baseSignupButtonText }}</button><button v-else-if="selectedPaidProjects.length && paidOrderStatus !== 'paid' && paidOrderStatus !== 'refunding'" class="primary" type="button" @click="openPayConfirm">提交自费订单并支付￥{{ paidTotal }}</button><button v-else-if="paidOrderStatus === 'paid'" class="ghost" type="button" @click="requestRefund">申请整单退款</button><button v-else-if="paidOrderStatus === 'refunding'" class="primary" type="button" @click="finishRefund">模拟退款成功</button><button v-else class="ghost" type="button" @click="scrollToPaidProjects">选择推荐加项</button></div></section>
 
         <section v-else-if="page === 'questionnaires'" class="screen questionnaires-screen"><div class="page-title route-return-title"><button v-if="questionnairesBackTarget === 'home'" type="button" @click="backFromQuestionnaires"><el-icon><ArrowLeft /></el-icon></button><h2>问卷量表</h2></div><article v-for="item in questionnaires" :key="item.name" class="list-card questionnaire-card"><div class="questionnaire-card-main"><strong>{{ item.name }}</strong><p>截止日期：{{ item.due }}</p></div><div class="questionnaire-card-actions"><span :class="['questionnaire-status', questionnaireStatusClass(item.status)]">{{ item.status }}</span><button type="button" @click="go('questionnaireForm')">{{ questionnaireActionLabel(item.status) }}</button></div></article></section>
 
@@ -1673,7 +1690,7 @@ onBeforeUnmount(() => {
 
       <section v-if="pendingBindAction" class="child-sheet-mask" @click.self="continueBindForm"><article class="child-sheet result-sheet bind-confirm-sheet"><header><strong>{{ pendingBindAction === 'cancel' ? '放弃本次绑定？' : '当前绑定信息尚未提交' }}</strong><button type="button" @click="continueBindForm">×</button></header><p>{{ pendingBindAction === 'cancel' ? '已填写的信息将不会保存。' : '离开后将清空已填写内容，是否继续？' }}</p><button class="ghost full" type="button" @click="continueBindForm">继续填写</button><button class="danger full" type="button" @click="discardBindForm">{{ pendingBindAction === 'cancel' ? '放弃' : '离开' }}</button></article></section>
       <section v-if="pendingDeleteStudent" class="child-sheet-mask" @click.self="cancelDeleteStudent"><article class="child-sheet result-sheet delete-student-sheet"><header><strong>确认删除该就诊人？</strong><button type="button" @click="cancelDeleteStudent">×</button></header><p>删除后将不再展示该学生的报告、问卷和复筛通知入口。</p><p v-if="pendingDeleteStudent.default" class="delete-warning">该学生为默认就诊人，删除后请重新设置默认就诊人。</p><button class="danger full" type="button" @click="confirmDeleteStudent">确认删除</button><button class="ghost full" type="button" @click="cancelDeleteStudent">取消</button></article></section>
-      <section v-if="showBaseSignupSuccess" class="child-sheet-mask" @click.self="showBaseSignupSuccess = false"><article class="child-sheet result-sheet"><header><strong>基础报名成功</strong><button type="button" @click="showBaseSignupSuccess = false">×</button></header><p>已确认参加本次免费基础筛查，自费项目可在截止时间前继续选择。</p><button class="primary full" type="button" @click="scrollToPaidProjects">继续选择推荐加项</button></article></section>
+      <section v-if="showBaseSignupSuccess" class="child-sheet-mask" @click.self="showBaseSignupSuccess = false"><article class="child-sheet result-sheet"><header><strong>基础报名成功</strong><button type="button" @click="showBaseSignupSuccess = false">×</button></header><p>{{ baseSignupSuccessMessage }}</p><button class="primary full" type="button" @click="scrollToPaidProjects">继续选择推荐加项</button></article></section>
       <section v-if="showPayConfirm" class="child-sheet-mask" @click.self="showPayConfirm = false"><article class="child-sheet result-sheet"><header><strong>自费订单确认</strong><button type="button" @click="showPayConfirm = false">×</button></header><p>已选 {{ selectedPaidProjects.length }} 项，合计 ￥{{ paidTotal }}。</p><button class="primary full" type="button" @click="finishWechatPay">微信支付</button><button class="ghost full" type="button" @click="showPayConfirm = false">取消</button></article></section>
       <section v-if="showPaySuccess" class="child-sheet-mask" @click.self="showPaySuccess = false"><article class="child-sheet result-sheet"><header><strong>支付成功</strong><button type="button" @click="showPaySuccess = false">×</button></header><p>自费项目已支付，将随本次体检计划一同安排。</p><button class="primary full" type="button" @click="showPaySuccess = false">知道了</button></article></section>
       <section v-if="showRefundConfirm" class="child-sheet-mask" @click.self="showRefundConfirm = false"><article class="child-sheet result-sheet"><header><strong>申请整单退款</strong><button type="button" @click="showRefundConfirm = false">×</button></header><p>退款只影响自费订单，不影响基础筛查报名。</p><button class="primary full" type="button" @click="confirmRefunding">确认退款</button><button class="ghost full" type="button" @click="showRefundConfirm = false">取消</button></article></section>
@@ -2825,6 +2842,94 @@ onBeforeUnmount(() => {
 .rehab-leave-dialog input,.rehab-leave-dialog select{height:38px!important;padding:0 10px!important}
 .rehab-leave-dialog textarea{padding:9px 10px!important;resize:none!important;line-height:1.5!important}
 .phone-shell.is-login-shell .simple-login-card{gap:10px!important;padding:18px 20px!important;margin:-26px 4px 0!important}.phone-shell.is-login-shell .simple-login-card .field-only:first-child{margin-top:0!important}.phone-shell.is-login-shell .login-brand-panel{height:232px}.phone-shell.is-login-shell .login-brand-panel h1{margin-top:18px!important;font-size:24px!important;line-height:1.25!important;white-space:nowrap!important}.phone-shell.is-login-shell .login-brand-subtitle{display:block!important;width:auto!important;margin-top:8px!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:rgba(255,255,255,.88)!important;font-size:16px!important;font-weight:600!important;line-height:1.3!important;backdrop-filter:none!important}.phone-shell.is-login-shell .login-brand-subtitle::before{display:none!important}.phone-shell.is-login-shell .login-brand-panel p{display:none!important}.phone-top strong{min-width:0!important;max-width:100%!important;font-size:clamp(14px,4.1vw,17px)!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+
+/* signup insurance confirmation */
+.insurance-confirm-group{margin-top:2px!important;padding-top:11px!important;border-top:1px solid rgba(216,238,234,.72)!important;display:flex!important;flex-direction:column!important;gap:9px!important}
+.insurance-confirm-title{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}
+.insurance-confirm-title strong{color:#20343A!important;font-size:15px!important;font-weight:800!important;line-height:1.3!important}
+.insurance-confirm-title span{flex:none;color:#CF5C5C!important;font-size:12px!important;font-weight:700!important;line-height:1.2!important}
+.insurance-row,.insurance-fee-row{display:grid!important;grid-template-columns:82px minmax(0,1fr)!important;align-items:center!important;gap:8px!important}
+.insurance-row em,.insurance-fee-row em{color:#60757C!important;font-size:13px!important;font-style:normal!important;font-weight:700!important;white-space:nowrap!important}
+.insurance-options{min-width:0!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+.insurance-options button{min-width:0!important;height:34px!important;border:1px solid rgba(216,238,234,.9)!important;border-radius:999px!important;background:#FAFEFD!important;color:#60757C!important;font-size:13px!important;font-weight:800!important;line-height:1!important;white-space:nowrap!important;box-shadow:none!important}
+.insurance-options button.active{border-color:#12A8AD!important;background:#E4F8F6!important;color:#12A8AD!important}
+.insurance-fee-row strong{min-width:0!important;color:#12A8AD!important;font-size:15px!important;font-weight:900!important;line-height:1.3!important;text-align:right!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.insurance-confirm-group p{margin:0!important;padding:8px 10px!important;border-radius:10px!important;background:#F8FEFC!important;color:#60757C!important;font-size:12px!important;line-height:1.45!important}
+@media(max-width:360px){.insurance-row,.insurance-fee-row{grid-template-columns:72px minmax(0,1fr)!important}.insurance-options{gap:6px!important}.insurance-options button{font-size:12px!important}}
+
+/* desktop H5 preview height contract */
+.parent-demo{
+  height:100vh!important;
+  min-height:0!important;
+  padding:24px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+.phone-shell{
+  width:390px!important;
+  max-width:none!important;
+  height:844px!important;
+  max-height:none!important;
+  min-height:0!important;
+  margin:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+}
+.phone-top,
+.bottom-tabs{
+  flex:none!important;
+}
+.phone-content{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  height:auto!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(96,117,124,.18) transparent;
+}
+.phone-content::-webkit-scrollbar{width:4px}
+.phone-content::-webkit-scrollbar-track{background:transparent}
+.phone-content::-webkit-scrollbar-thumb{background:rgba(96,117,124,.18);border-radius:999px}
+.direct-paid-list{margin-top:10px!important}
+.direct-paid-list .paid-project-row:first-child{margin-top:0!important}
+.login-content{
+  height:auto!important;
+}
+.phone-shell:has(.signup-screen) .phone-content,
+.phone-shell:has(.rescreen-screen) .phone-content,
+.phone-shell:has(.profile-screen) .phone-content,
+.phone-shell:has(.student-edit-screen) .phone-content,
+.phone-shell:has(.project-screen) .phone-content,
+.phone-shell:has(.project-subpage-screen) .phone-content{
+  height:auto!important;
+}
+@media (hover:hover) and (pointer:fine){
+  .phone-content,
+  .login-content{
+    height:auto!important;
+  }
+}
+@media (hover:none) and (pointer:coarse){
+  .parent-demo{
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    padding:0!important;
+    display:block!important;
+  }
+  .phone-shell{
+    width:100vw!important;
+    max-width:none!important;
+    height:100dvh!important;
+    max-height:none!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+  }
+}
 </style>
 
 

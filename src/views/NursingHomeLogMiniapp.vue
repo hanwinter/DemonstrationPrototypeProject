@@ -59,7 +59,7 @@ function createArchive(staff = order.staff, status = '草稿', date = order.star
   }
 }
 
-const firstArchives = reactive([createArchive('张洪霞', '已发送', '2026-08-01'), createArchive('李小红', '待填写', '2026-08-05')])
+const firstArchives = reactive([createArchive('张洪霞', '草稿', '2026-08-01'), createArchive('李小红', '待填写', '2026-08-05')])
 const activeArchive = computed(() => firstArchives[activeArchiveIndex.value])
 const editableArchive = computed(() => ['待填写', '草稿', '可修改'].includes(activeArchive.value?.status))
 const readonlyArchive = computed(() => !editableArchive.value)
